@@ -138,6 +138,9 @@ World::~World()
 	Log.Notice("BattlegroundMgr", "~BattlegroundMgr()");
 	delete CBattlegroundManager::getSingletonPtr();
 
+	Log.Notice("QuestMgr", "~QuestMgr()");
+	delete GameEventMgr::getSingletonPtr();
+
 	Log.Notice("InstanceMgr", "~InstanceMgr()");
 	sInstanceMgr.Shutdown();
 
@@ -390,6 +393,7 @@ bool World::SetInitialWorldSettings()
 	new ChatHandler;
 	new SpellProcMgr;
 	new SpellFactoryMgr;
+	new GameEventMgr;
 
 	ApplyNormalFixes();
 
@@ -501,6 +505,9 @@ bool World::SetInitialWorldSettings()
 	Log.Success("World", "Starting Auction System...");
 	new AuctionMgr;
 	sAuctionMgr.LoadAuctionHouses();
+
+	// load game events
+	sGameEventMgr.LoadEvents();
 
 	m_queueUpdateTimer = mQueueUpdateInterval;
 	if(Config.MainConfig.GetBoolDefault("Startup", "BackgroundLootLoading", true))
@@ -1497,6 +1504,9 @@ void World::Rehash(bool load)
 	m_movementCompressThreshold = Config.MainConfig.GetFloatDefault("Movement", "CompressThreshold", 25.0f);
 	m_movementCompressThreshold *= m_movementCompressThreshold;		// square it to avoid sqrt() on checks
 	// ======================================
+
+	thread_loop_interval = Config.MainConfig.GetIntDefault("GameEvent", "TickCount", 1);
+	optimized_game_event_saving = Config.MainConfig.GetBoolDefault("GameEvent", "OptimizedSaving", false);
 
 	if(m_banTable != NULL)
 		free(m_banTable);

@@ -63,7 +63,9 @@ enum ServerHookEvents
     SERVER_HOOK_EVENT_ON_ADVANCE_SKILLLINE  = 29,
     SERVER_HOOK_EVENT_ON_DUEL_FINISHED      = 30,
     SERVER_HOOK_EVENT_ON_AURA_REMOVE		= 31,
-    SERVER_HOOK_EVENT_ON_RESURRECT		= 32,
+    SERVER_HOOK_EVENT_ON_RESURRECT			= 32,
+	SERVER_HOOK_EVENT_ON_GAME_EVENT_START	= 33,
+	SERVER_HOOK_EVENT_ON_GAME_EVENT_FINISH	= 34,
 
     NUM_SERVER_HOOKS,
 };
@@ -109,6 +111,8 @@ typedef void(*tOnAdvanceSkillLine)(Player* pPlayer, uint32 SkillLine, uint32 Cur
 typedef void(*tOnDuelFinished)(Player* Winner, Player* Looser);
 typedef void(*tOnAuraRemove)(Aura* aura);
 typedef bool(*tOnResurrect)(Player* pPlayer);
+typedef void(*tOnGameEventStart)(uint32 id);
+typedef void(*tOnGameEventFinish)(uint32 id);
 
 class Spell;
 class Aura;
@@ -335,6 +339,8 @@ class SERVER_DECL CreatureAIScript
 		virtual void AIUpdate() {}
 		virtual void OnEmote(Player* pPlayer, EmoteType Emote) {}
 		virtual void StringFunctionCall(int) {}
+		virtual void GameEventStart(uint32 id) {}
+		virtual void GameEventFinish(uint32 id) {}
 
 		void RegisterAIUpdateEvent(uint32 frequency);
 		void ModifyAIUpdateEvent(uint32 newfrequency);
@@ -576,6 +582,8 @@ class SERVER_DECL HookInterface : public Singleton<HookInterface>
 		void OnDuelFinished(Player* Winner, Player* Looser);
 		void OnAuraRemove(Aura* aura);
 		bool OnResurrect(Player* pPlayer);
+		void OnGameEventStart(uint32 id);
+		void OnGameEventFinish(uint32 id);
 };
 
 #define sScriptMgr ScriptMgr::getSingleton()

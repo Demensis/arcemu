@@ -1118,3 +1118,17 @@ bool HookInterface::OnResurrect(Player* pPlayer)
 	}
 	return ret_val;
 }
+
+void HookInterface::OnGameEventStart(uint32 id)
+{
+	ServerHookList hookList = sScriptMgr._hooks[SERVER_HOOK_EVENT_ON_GAME_EVENT_START];
+	for(ServerHookList::iterator itr = hookList.begin(); itr != hookList.end(); ++itr)
+		((tOnGameEventStart)*itr)(id);
+}
+
+void HookInterface::OnGameEventFinish(uint32 id)
+{
+	ServerHookList hookList = sScriptMgr._hooks[SERVER_HOOK_EVENT_ON_GAME_EVENT_FINISH];
+	for(ServerHookList::iterator itr = hookList.begin(); itr != hookList.end(); ++itr)
+		((tOnGameEventFinish)*itr)(id);
+}
