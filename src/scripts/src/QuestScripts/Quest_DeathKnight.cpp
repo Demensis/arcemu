@@ -298,6 +298,7 @@ class UnworthyInitiate : public MoonScriptCreatureAI
 			}
 			_unit->SetStandState(uint8(STANDSTATE_KNEEL));
 			state = PHASE_INACTIVE;
+			_unit->m_escorter = NULL;
 			ParentClass::OnCombatStop(pTarget);
 		}
 
