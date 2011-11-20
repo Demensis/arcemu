@@ -487,6 +487,7 @@ class SERVER_DECL QuestScript
 		virtual void OnCreatureKill(uint32 entry, Player* mTarget, QuestLogEntry* qLogEntry) {}
 		virtual void OnExploreArea(uint32 areaId, Player* mTarget, QuestLogEntry* qLogEntry) {}
 		virtual void OnPlayerItemPickup(uint32 itemId, uint32 totalCount, Player* mTarget, QuestLogEntry* qLogEntry) {}
+		virtual void OnQuestgiverHello(Object * qst_giver, Player * mTarget) {}
 };
 
 /* * Class InstanceScript

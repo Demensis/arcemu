@@ -20,6 +20,8 @@
 #include "Setup.h"
 #include "../Common/EasyFunctions.h"
 
+/* Scourge Gryphons */
+
 class ScourgeGryphonOne : public GossipScript
 {
 	public:
@@ -48,7 +50,7 @@ class ScourgeGryphonTwo : public GossipScript
 		}
 };
 
-// The Endless Hunger script for both GO and Unworthy Initiate
+/* The Endless Hunger script for both GO and Unworthy Initiate */
 
 #define CN_INITIATE_1				29519
 #define CN_INITIATE_2				29565
@@ -307,6 +309,31 @@ class UnworthyInitiate : public MoonScriptCreatureAI
 		Creature * anchor;
 };
 
+/* InServiceOfLichKing - play quest sound - REMEMBER IT STARTS RIGHT WHEN YOU CLICK ON LICH KING! */
+
+class InServiceOfLichKing : public QuestScript
+{
+public:
+	void OnQuestgiverHello(Object * qst_giver, Player * mTarget)
+	{
+		mTarget->PlaySound(14734);
+		sEventMgr.AddEvent(mTarget, &Player::PlaySound, (uint32)14735, EVENT_UNK, 23000, 1, EVENT_FLAG_DO_NOT_EXECUTE_IN_WORLD_CONTEXT);
+		sEventMgr.AddEvent(mTarget, &Player::PlaySound, (uint32)14736, EVENT_UNK, 49000, 1, EVENT_FLAG_DO_NOT_EXECUTE_IN_WORLD_CONTEXT);
+	}
+};
+
+class IntoTheRealmOfShadows : public QuestScript
+{
+public:
+	void OnQuestStart(Player * mTarget, QuestLogEntry * qLogEntry)
+	{
+		mTarget->CastSpell(mTarget, 52693, false); // i am unsure if its not the: 52275 but i think no
+	}
+	void OnQuestComplete(Player * mTarget, QuestLogEntry * qLogEntry)
+	{
+		mTarget->PlaySound(12985);
+	}
+};
 
 void SetupDeathKnight(ScriptMgr* mgr)
 {
@@ -333,4 +360,7 @@ void SetupDeathKnight(ScriptMgr* mgr)
 	mgr->register_creature_script(CN_INITIATE_3, &UnworthyInitiate::Create);
 	mgr->register_creature_script(CN_INITIATE_4, &UnworthyInitiate::Create);
 	mgr->register_creature_script(CN_INITIATE_5, &UnworthyInitiate::Create);
+
+	mgr->register_quest_script(12593, new InServiceOfLichKing());
+	mgr->register_quest_script(12687, new IntoTheRealmOfShadows());
 }
