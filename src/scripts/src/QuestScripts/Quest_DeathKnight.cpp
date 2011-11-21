@@ -322,6 +322,8 @@ public:
 	}
 };
 
+/* In to the realm of shadows, changing player's phase after accepting the quest */
+
 class IntoTheRealmOfShadows : public QuestScript
 {
 public:
@@ -334,6 +336,23 @@ public:
 		mTarget->PlaySound(12985);
 	}
 };
+
+bool PreparationForBattle(Player * pPlayer, SpellEntry * pSpell, Spell * spell)
+{
+	if( pSpell->Id != 53341 && pSpell->Id != 53343 )
+		return false;
+
+	QuestLogEntry * qle = pPlayer->GetQuestLogForEntry(12842);
+
+	// if can be finished, it means we've already done this
+	if( qle == NULL || qle->CanBeFinished() )
+		return false;
+
+	qle->Complete();
+	qle->SendQuestComplete();
+
+	return true;
+}
 
 void SetupDeathKnight(ScriptMgr* mgr)
 {
@@ -363,4 +382,6 @@ void SetupDeathKnight(ScriptMgr* mgr)
 
 	mgr->register_quest_script(12593, new InServiceOfLichKing());
 	mgr->register_quest_script(12687, new IntoTheRealmOfShadows());
+
+	mgr->register_hook(SERVER_HOOK_EVENT_ON_CAST_SPELL, (void*)PreparationForBattle);
 }
