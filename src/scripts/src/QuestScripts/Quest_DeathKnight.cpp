@@ -311,10 +311,13 @@ class UnworthyInitiate : public MoonScriptCreatureAI
 
 /* InServiceOfLichKing - play quest sound - REMEMBER IT STARTS RIGHT WHEN YOU CLICK ON LICH KING! */
 
-class InServiceOfLichKing : public QuestScript
+class InServiceOfLichKing : public CreatureAIScript
 {
 public:
-	void OnQuestgiverHello(Object * qst_giver, Player * mTarget)
+	ADD_CREATURE_FACTORY_FUNCTION(InServiceOfLichKing);
+	InServiceOfLichKing(Creature * pCreature) : CreatureAIScript(pCreature) {}
+
+	void OnQuestgiverHello(Player * mTarget)
 	{
 		mTarget->PlaySound(14734);
 		sEventMgr.AddEvent(mTarget, &Player::PlaySound, (uint32)14735, EVENT_UNK, 23000, 1, EVENT_FLAG_DO_NOT_EXECUTE_IN_WORLD_CONTEXT);
@@ -337,6 +340,8 @@ public:
 	}
 };
 
+/* Runeforging: Preparation for Battle spell script */
+
 bool PreparationForBattle(Player * pPlayer, SpellEntry * pSpell, Spell * spell)
 {
 	if( pSpell->Id != 53341 && pSpell->Id != 53343 )
@@ -348,8 +353,9 @@ bool PreparationForBattle(Player * pPlayer, SpellEntry * pSpell, Spell * spell)
 	if( qle == NULL || qle->CanBeFinished() )
 		return false;
 
-	qle->Complete();
-	qle->SendQuestComplete();
+	// do it blizzlike way :P
+	// since hook event is caled when player start casting the spell, we need to make quest finished after 5 seconds
+	sEventMgr.AddEvent(TO_UNIT(pPlayer), &Unit::EventCastSpell, TO_UNIT(pPlayer), dbcSpell.LookupEntry(54586), EVENT_CREATURE_UPDATE, 5000, 0, EVENT_FLAG_DO_NOT_EXECUTE_IN_WORLD_CONTEXT);
 
 	return true;
 }
@@ -380,7 +386,7 @@ void SetupDeathKnight(ScriptMgr* mgr)
 	mgr->register_creature_script(CN_INITIATE_4, &UnworthyInitiate::Create);
 	mgr->register_creature_script(CN_INITIATE_5, &UnworthyInitiate::Create);
 
-	mgr->register_quest_script(12593, new InServiceOfLichKing());
+	mgr->register_creature_script(12593, &InServiceOfLichKing::Create);
 	mgr->register_quest_script(12687, new IntoTheRealmOfShadows());
 
 	mgr->register_hook(SERVER_HOOK_EVENT_ON_CAST_SPELL, (void*)PreparationForBattle);
