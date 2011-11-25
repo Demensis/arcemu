@@ -152,10 +152,6 @@ class AcherusSoulPrison : GameObjectAIScript
 			   pCreature->GetEntry() == CN_INITIATE_4 ||
 			   pCreature->GetEntry() == CN_INITIATE_5 )
 			{
-				pCreature->SetStandState(uint8(STANDSTATE_STAND));
-				float Facing = pCreature->calcRadAngle(pCreature->GetPositionX(), pCreature->GetPositionY(), pPlayer->GetPositionX(), pPlayer->GetPositionY());
-				pCreature->SetFacing(Facing);
-
 				// this way we have refference to our player
 				pCreature->m_escorter = pPlayer;
 
@@ -181,15 +177,15 @@ class UnworthyInitiate : public MoonScriptCreatureAI
 		void OnLoad()
 		{
 			// attach nearest prison and cast spell on it
-			float SSX = _unit->GetPositionX();
-			float SSY = _unit->GetPositionY();
-			float SSZ = _unit->GetPositionZ();
-			anchor = _unit->GetMapMgr()->GetInterface()->GetCreatureNearestCoords(SSX, SSY, SSZ, NPC_ANCHOR);
+			anchor = _unit->GetMapMgr()->GetInterface()->GetCreatureNearestCoords(_unit->GetPositionX(), _unit->GetPositionY(), 0.0f, NPC_ANCHOR);
 			if( anchor )
 			{
+				anchor->SetChannelSpellTargetGUID( _unit->GetGUID() );
+				anchor->SetChannelSpellId( SPELL_CHAINED_PESANT_BREATH );
 				anchor->CastSpell(_unit, SPELL_CHAINED_PESANT_BREATH, false);
-				_unit->CastSpell(_unit, SPELL_CHAINED_PESANT_CHEST, false);
 			}
+
+			_unit->CastSpell(_unit, SPELL_CHAINED_PESANT_CHEST, false);
 
 			ParentClass::OnLoad();
 		}
@@ -198,6 +194,16 @@ class UnworthyInitiate : public MoonScriptCreatureAI
 		{
 			if( state == PHASE_INACTIVE )
 			{
+				_unit->SetStandState( uint8(STANDSTATE_STAND) );
+				_unit->RemoveAllAuras();
+				SetFacingToObject( _unit->m_escorter );
+				if( anchor )
+				{
+					anchor->SetChannelSpellTargetGUID( 0 );
+					anchor->SetChannelSpellId( 0 );
+					//anchor->GetCurrentSpell()->cancel();
+				}
+		
 				timer = AddTimer(1000);
 				state = PHASE_STANDUP;
 			}
@@ -250,6 +256,8 @@ class UnworthyInitiate : public MoonScriptCreatureAI
 				_unit->CastSpell(_unit, 48266, false); // blood presence
 				timer = AddTimer(2000);
 				state = PHASE_ATTACK_PLAYER;
+				// he equips same weapon as normal DK?
+				SetDisplayWeaponIds(38707, 0);
 			}
 			else if( state == PHASE_ATTACK_PLAYER && IsTimerFinished(timer) )
 			{
@@ -260,6 +268,7 @@ class UnworthyInitiate : public MoonScriptCreatureAI
 			else if( state == -1 && IsTimerFinished(timer) )
 			{
 				_unit->SetUInt32Value(UNIT_FIELD_FLAGS, 0);
+				_unit->SetFaction(16);
 				_unit->GetAIInterface()->setNextTarget(_unit->m_escorter);
 				_unit->GetAIInterface()->AttackReaction(_unit->m_escorter, 1, 0);
 			}
@@ -295,10 +304,13 @@ class UnworthyInitiate : public MoonScriptCreatureAI
 			_unit->SetUInt32Value(UNIT_FIELD_FLAGS, 33024);
 			if( anchor )
 			{
+				anchor->SetChannelSpellTargetGUID( _unit->GetGUID() );
+				anchor->SetChannelSpellId( SPELL_CHAINED_PESANT_BREATH );
 				anchor->CastSpell(_unit, SPELL_CHAINED_PESANT_BREATH, false);
-				_unit->CastSpell(_unit, SPELL_CHAINED_PESANT_CHEST, false);
 			}
-			_unit->SetStandState(uint8(STANDSTATE_KNEEL));
+
+			_unit->CastSpell( _unit, SPELL_CHAINED_PESANT_CHEST, false );
+			_unit->SetStandState( uint8(STANDSTATE_KNEEL) );
 			state = PHASE_INACTIVE;
 			_unit->m_escorter = NULL;
 			ParentClass::OnCombatStop(pTarget);
@@ -319,9 +331,12 @@ public:
 
 	void OnQuestgiverHello(Player * mTarget)
 	{
+		if( mTarget->HasFinishedQuest(12593) || mTarget->HasQuest(12593) )
+			return;
+
 		mTarget->PlaySound(14734);
-		sEventMgr.AddEvent(mTarget, &Player::PlaySound, (uint32)14735, EVENT_UNK, 23000, 1, EVENT_FLAG_DO_NOT_EXECUTE_IN_WORLD_CONTEXT);
-		sEventMgr.AddEvent(mTarget, &Player::PlaySound, (uint32)14736, EVENT_UNK, 49000, 1, EVENT_FLAG_DO_NOT_EXECUTE_IN_WORLD_CONTEXT);
+		sEventMgr.AddEvent(mTarget, &Player::PlaySound, (uint32)14735, EVENT_UNK, 22500, 1, EVENT_FLAG_DO_NOT_EXECUTE_IN_WORLD_CONTEXT);
+		sEventMgr.AddEvent(mTarget, &Player::PlaySound, (uint32)14736, EVENT_UNK, 48500, 1, EVENT_FLAG_DO_NOT_EXECUTE_IN_WORLD_CONTEXT);
 	}
 };
 
@@ -345,13 +360,13 @@ public:
 bool PreparationForBattle(Player * pPlayer, SpellEntry * pSpell, Spell * spell)
 {
 	if( pSpell->Id != 53341 && pSpell->Id != 53343 )
-		return false;
+		return true;
 
 	QuestLogEntry * qle = pPlayer->GetQuestLogForEntry(12842);
 
 	// if can be finished, it means we've already done this
 	if( qle == NULL || qle->CanBeFinished() )
-		return false;
+		return true;
 
 	// do it blizzlike way :P
 	// since hook event is caled when player start casting the spell, we need to make quest finished after 5 seconds
@@ -386,7 +401,7 @@ void SetupDeathKnight(ScriptMgr* mgr)
 	mgr->register_creature_script(CN_INITIATE_4, &UnworthyInitiate::Create);
 	mgr->register_creature_script(CN_INITIATE_5, &UnworthyInitiate::Create);
 
-	mgr->register_creature_script(12593, &InServiceOfLichKing::Create);
+	mgr->register_creature_script(25462, &InServiceOfLichKing::Create);
 	mgr->register_quest_script(12687, new IntoTheRealmOfShadows());
 
 	mgr->register_hook(SERVER_HOOK_EVENT_ON_CAST_SPELL, (void*)PreparationForBattle);

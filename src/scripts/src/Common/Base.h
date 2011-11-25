@@ -317,6 +317,7 @@ class MoonScriptCreatureAI : public CreatureAIScript
 		void					MoveToSpawnOrigin();
 		void					StopMovement();
 		void					SetFlyMode(bool pValue);
+		void					SetFacingToObject(Object * pObject);
 
 		//Attack and Combat State
 		bool					GetCanEnterCombat();
