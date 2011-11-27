@@ -77,6 +77,7 @@ class ScourgeGryphonTwo : public GossipScript
 #define    PHASE_REACH_ARMORY              2
 #define    PHASE_ACTIVATE                  3
 #define    PHASE_ATTACK_PLAYER             4
+#define    PHASE_ATTACKING                 5
 
 struct DisplayToSpell
 {
@@ -153,7 +154,7 @@ class AcherusSoulPrison : GameObjectAIScript
 			   pCreature->GetEntry() == CN_INITIATE_5 )
 			{
 				// this way we have refference to our player
-				pCreature->m_escorter = pPlayer;
+				pCreature->SetSummonedByGUID( pPlayer->GetGUID() );
 
 				// do all other things directly in creature's AI class, it's more comfortable
 				pCreature->GetScript()->RegisterAIUpdateEvent(1000);
@@ -167,36 +168,62 @@ class UnworthyInitiate : public MoonScriptCreatureAI
 		MOONSCRIPT_FACTORY_FUNCTION(UnworthyInitiate, MoonScriptCreatureAI);
 		UnworthyInitiate(Creature * c) : MoonScriptCreatureAI(c)
 		{
-			AddSpell(SPELL_BLOOD_STRIKE, Target_Current, 75.0f, 0.0f, 4000);
-			AddSpell(SPELL_DEATH_COIL, Target_Current, 75.f, 0.0f, 6000);
-			AddSpell(SPELL_ICY_TOUCH, Target_Current, 75.f, 0.0f, 2000);
-			AddSpell(SPELL_PLAGUE_STRIKE, Target_Current, 75.f, 0.0f, 5000);
-			state = PHASE_INACTIVE;
+			AddSpell(SPELL_BLOOD_STRIKE, Target_Current, 85.0f, 0.0f, 4000);
+			AddSpell(SPELL_DEATH_COIL, Target_Current, 85.f, 0.0f, 6000);
+			AddSpell(SPELL_ICY_TOUCH, Target_Current, 85.f, 0.0f, 2000);
+			AddSpell(SPELL_PLAGUE_STRIKE, Target_Current, 85.f, 0.0f, 5000);
 		}
 
 		void OnLoad()
 		{
+			RegisterAIUpdateEvent(500);
+			_unit->SetUInt32Value(UNIT_FIELD_FLAGS, 33024); // from database
+			_unit->SetFaction(7);
+			_unit->SetStandState( uint8(STANDSTATE_KNEEL) );
+			SetDisplayWeapon(false, false);
+			state = -1;
+			anchorGuid = 0;
+			ParentClass::OnLoad();
+		}
+
+		void CheckForAnchor()
+		{
 			// attach nearest prison and cast spell on it
-			anchor = _unit->GetMapMgr()->GetInterface()->GetCreatureNearestCoords(_unit->GetPositionX(), _unit->GetPositionY(), 0.0f, NPC_ANCHOR);
+			Creature * anchor = _unit->GetMapMgr()->GetInterface()->GetCreatureNearestCoords(_unit->GetPositionX(), _unit->GetPositionY(), 0.0f, NPC_ANCHOR);
 			if( anchor )
 			{
 				anchor->SetChannelSpellTargetGUID( _unit->GetGUID() );
 				anchor->SetChannelSpellId( SPELL_CHAINED_PESANT_BREATH );
 				anchor->CastSpell(_unit, SPELL_CHAINED_PESANT_BREATH, false);
+				anchorGuid = anchor->GetGUID();
 			}
-
+			
 			_unit->CastSpell(_unit, SPELL_CHAINED_PESANT_CHEST, false);
-
-			ParentClass::OnLoad();
 		}
 
 		void AIUpdate()
 		{
+			if( anchorGuid == 0 )
+			{
+				CheckForAnchor();
+				if( anchorGuid != 0 )
+				{
+					state = PHASE_INACTIVE;
+					RemoveAIUpdateEvent();
+					return;
+				}
+			}
+
 			if( state == PHASE_INACTIVE )
 			{
 				_unit->SetStandState( uint8(STANDSTATE_STAND) );
 				_unit->RemoveAllAuras();
-				SetFacingToObject( _unit->m_escorter );
+
+				Player * plr = _unit->GetMapMgrPlayer( _unit->GetSummonedByGUID() );
+				if( plr )
+					SetFacingToObject( plr );
+
+				Creature * anchor = _unit->GetMapMgrCreature( anchorGuid );
 				if( anchor )
 				{
 					anchor->SetChannelSpellTargetGUID( 0 );
@@ -237,8 +264,9 @@ class UnworthyInitiate : public MoonScriptCreatureAI
 			else if( state == PHASE_ACTIVATE && IsTimerFinished(timer) )
 			{
 				// face off the player
-				float Facing = _unit->calcRadAngle(_unit->GetPositionX(), _unit->GetPositionY(), _unit->m_escorter->GetPositionX(), _unit->m_escorter->GetPositionY());
-				_unit->SetFacing(Facing);
+				Player * plr = _unit->GetMapMgrPlayer( _unit->GetSummonedByGUID() );
+				if( plr )
+					SetFacingToObject( plr );
 
 				// select suitable spell
 				uint32 spell_to_cast = 0;
@@ -262,15 +290,24 @@ class UnworthyInitiate : public MoonScriptCreatureAI
 			else if( state == PHASE_ATTACK_PLAYER && IsTimerFinished(timer) )
 			{
 				_unit->SendChatMessage(CHAT_MSG_MONSTER_SAY, LANG_UNIVERSAL, "And now you die!");
-				state = -1; // we are fighting
+				state = PHASE_ATTACKING; // we are fighting
 				timer = AddTimer(1000);
 			}
-			else if( state == -1 && IsTimerFinished(timer) )
+			else if( state == PHASE_ATTACKING && IsTimerFinished(timer) )
 			{
-				_unit->SetUInt32Value(UNIT_FIELD_FLAGS, 0);
-				_unit->SetFaction(16);
-				_unit->GetAIInterface()->setNextTarget(_unit->m_escorter);
-				_unit->GetAIInterface()->AttackReaction(_unit->m_escorter, 1, 0);
+				_unit->SetFaction( 16 );
+
+				Player * plr = _unit->GetMapMgrPlayer( _unit->GetSummonedByGUID() );
+				if( plr )
+				{
+					SetCanEnterCombat( true );
+					_unit->GetAIInterface()->AttackReaction( plr, 500, 0 );
+					_unit->GetAIInterface()->setNextTarget( plr );
+					_unit->GetAIInterface()->EventEnterCombat( plr, 0 );
+				}
+
+				state = -1;
+				//_unit->SetUInt32Value( UNIT_FIELD_FLAGS, 0 );
 			}
 
 			ParentClass::AIUpdate();
@@ -282,7 +319,7 @@ class UnworthyInitiate : public MoonScriptCreatureAI
 				return;
 
 			// don't credit if any other player kills my initiate
-			if( mKiller->GetGUID() != _unit->m_escorter->GetGUID() )
+			if( mKiller->GetGUID() != _unit->GetSummonedByGUID() )
 				return;
 
 			Player * plr = TO_PLAYER(mKiller);
@@ -300,25 +337,12 @@ class UnworthyInitiate : public MoonScriptCreatureAI
 
 		void OnCombatStop(Unit * pTarget)
 		{
-			MoveToSpawnOrigin();
-			_unit->SetUInt32Value(UNIT_FIELD_FLAGS, 33024);
-			if( anchor )
-			{
-				anchor->SetChannelSpellTargetGUID( _unit->GetGUID() );
-				anchor->SetChannelSpellId( SPELL_CHAINED_PESANT_BREATH );
-				anchor->CastSpell(_unit, SPELL_CHAINED_PESANT_BREATH, false);
-			}
-
-			_unit->CastSpell( _unit, SPELL_CHAINED_PESANT_CHEST, false );
-			_unit->SetStandState( uint8(STANDSTATE_KNEEL) );
-			state = PHASE_INACTIVE;
-			_unit->m_escorter = NULL;
-			ParentClass::OnCombatStop(pTarget);
+			_unit->Despawn(1000, 1000);
 		}
 
 		int32 timer;
 		int8 state;
-		Creature * anchor;
+		uint64 anchorGuid;
 };
 
 /* InServiceOfLichKing - play quest sound - REMEMBER IT STARTS RIGHT WHEN YOU CLICK ON LICH KING! */
@@ -355,22 +379,23 @@ public:
 	}
 };
 
-/* Runeforging: Preparation for Battle spell script */
-
-bool PreparationForBattle(Player * pPlayer, SpellEntry * pSpell, Spell * spell)
+bool QuestCast(Player * pPlayer, SpellEntry * pSpell, Spell * spell)
 {
-	if( pSpell->Id != 53341 && pSpell->Id != 53343 )
+	/* Runeforging: Preparation for Battle spell script */
+	if( pSpell->Id == 53341 || pSpell->Id == 53343 )
+	{
+		QuestLogEntry * qle = pPlayer->GetQuestLogForEntry(12842);
+
+		// if can be finished, it means we've already done this
+		if( qle == NULL || qle->CanBeFinished() )
+			return true;
+
+		// do it blizzlike way :P
+		// since hook event is caled when player start casting the spell, we need to make quest finished after 5 seconds
+		sEventMgr.AddEvent(TO_UNIT(pPlayer), &Unit::EventCastSpell, TO_UNIT(pPlayer), dbcSpell.LookupEntry(54586), EVENT_CREATURE_UPDATE, 5000, 1, EVENT_FLAG_DO_NOT_EXECUTE_IN_WORLD_CONTEXT);
+
 		return true;
-
-	QuestLogEntry * qle = pPlayer->GetQuestLogForEntry(12842);
-
-	// if can be finished, it means we've already done this
-	if( qle == NULL || qle->CanBeFinished() )
-		return true;
-
-	// do it blizzlike way :P
-	// since hook event is caled when player start casting the spell, we need to make quest finished after 5 seconds
-	sEventMgr.AddEvent(TO_UNIT(pPlayer), &Unit::EventCastSpell, TO_UNIT(pPlayer), dbcSpell.LookupEntry(54586), EVENT_CREATURE_UPDATE, 5000, 0, EVENT_FLAG_DO_NOT_EXECUTE_IN_WORLD_CONTEXT);
+	}
 
 	return true;
 }
@@ -404,5 +429,5 @@ void SetupDeathKnight(ScriptMgr* mgr)
 	mgr->register_creature_script(25462, &InServiceOfLichKing::Create);
 	mgr->register_quest_script(12687, new IntoTheRealmOfShadows());
 
-	mgr->register_hook(SERVER_HOOK_EVENT_ON_CAST_SPELL, (void*)PreparationForBattle);
+	mgr->register_hook(SERVER_HOOK_EVENT_ON_CAST_SPELL, (void*)QuestCast);
 }
