@@ -1120,9 +1120,7 @@ void Spell::AddStartCooldown()
 
 void Spell::cast(bool check)
 {
-	if(duelSpell && (
-	            (p_caster != NULL && p_caster->GetDuelState() != DUEL_STATE_STARTED) ||
-	            (u_caster != NULL && u_caster->IsPet() && TO< Pet* >(u_caster)->GetPetOwner() && TO< Pet* >(u_caster)->GetPetOwner()->GetDuelState() != DUEL_STATE_STARTED)))
+	if(DuelSpellNoMoreValid())
 	{
 		// Can't cast that!
 		SendInterrupted(SPELL_FAILED_TARGET_FRIENDLY);
@@ -2042,10 +2040,10 @@ void Spell::SendSpellGo()
 		if(GetProto()->Effect[x])
 		{
 			bool add = true;
-			for(i = m_targetUnits[x].begin(); i != m_targetUnits[x].end(); i++)
+			for(i = m_targetUnits[x].begin(); i != m_targetUnits[x].end(); ++i)
 			{
 				add = true;
-				for(j = UniqueTargets.begin(); j != UniqueTargets.end(); j++)
+				for(j = UniqueTargets.begin(); j != UniqueTargets.end(); ++j)
 				{
 					if((*j) == (*i))
 					{
@@ -2225,7 +2223,7 @@ void Spell::writeSpellMissedTargets(WorldPacket* data)
 	SpellTargetsList::iterator i;
 	if(u_caster && u_caster->isAlive())
 	{
-		for(i = ModeratedTargets.begin(); i != ModeratedTargets.end(); i++)
+		for(i = ModeratedTargets.begin(); i != ModeratedTargets.end(); ++i)
 		{
 			*data << (*i).TargetGuid;       // uint64
 			*data << (*i).TargetModType;    // uint8
@@ -2240,7 +2238,7 @@ void Spell::writeSpellMissedTargets(WorldPacket* data)
 		}
 	}
 	else
-		for(i = ModeratedTargets.begin(); i != ModeratedTargets.end(); i++)
+		for(i = ModeratedTargets.begin(); i != ModeratedTargets.end(); ++i)
 		{
 			*data << (*i).TargetGuid;       // uint64
 			*data << (*i).TargetModType;    // uint8
@@ -2680,7 +2678,8 @@ bool Spell::TakePower()
 
 void Spell::HandleEffects(uint64 guid, uint32 i)
 {
-	if(event_GetInstanceID() == WORLD_INSTANCE)
+	if(event_GetInstanceID() == WORLD_INSTANCE ||
+		DuelSpellNoMoreValid())
 	{
 		DecRef();
 		return;
@@ -4075,10 +4074,15 @@ uint8 Spell::CanCast(bool tolerate)
 				}
 			}
 
-			// if target is already skinned, don't let it be skinned again
 			if(GetProto()->Effect[0] == SPELL_EFFECT_SKINNING)  // skinning
-				if(target->IsUnit() && TO_CREATURE(target)->Skinned)
+			{
+				// if target doesn't have skinnable flag, don't let it be skinned
+				if(!target->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SKINNABLE))
 					return SPELL_FAILED_TARGET_UNSKINNABLE;
+				// if target is already skinned, don't let it be skinned again
+				if(target->IsCreature() && TO_CREATURE(target)->Skinned)
+					return SPELL_FAILED_TARGET_UNSKINNABLE;
+			}
 
 			// all spells with target 61 need to be in group or raid
 			// TODO: need to research this if its not handled by the client!!!
@@ -5372,7 +5376,7 @@ void Spell::SafeAddTarget(TargetsList* tgt, uint64 guid)
 
 void Spell::SafeAddMissedTarget(uint64 guid)
 {
-	for(SpellTargetsList::iterator i = ModeratedTargets.begin(); i != ModeratedTargets.end(); i++)
+	for(SpellTargetsList::iterator i = ModeratedTargets.begin(); i != ModeratedTargets.end(); ++i)
 		if((*i).TargetGuid == guid)
 		{
 			//LOG_DEBUG("[SPELL] Something goes wrong in spell target system");
@@ -5386,7 +5390,7 @@ void Spell::SafeAddMissedTarget(uint64 guid)
 
 void Spell::SafeAddModeratedTarget(uint64 guid, uint16 type)
 {
-	for(SpellTargetsList::iterator i = ModeratedTargets.begin(); i != ModeratedTargets.end(); i++)
+	for(SpellTargetsList::iterator i = ModeratedTargets.begin(); i != ModeratedTargets.end(); ++i)
 		if((*i).TargetGuid == guid)
 		{
 			//LOG_DEBUG("[SPELL] Something goes wrong in spell target system");
@@ -5414,7 +5418,7 @@ bool Spell::Reflect(Unit* refunit)
 			return false;
 	}
 
-	for(std::list<struct ReflectSpellSchool*>::iterator i = refunit->m_reflectSpellSchool.begin(); i != refunit->m_reflectSpellSchool.end(); i++)
+	for(std::list<struct ReflectSpellSchool*>::iterator i = refunit->m_reflectSpellSchool.begin(); i != refunit->m_reflectSpellSchool.end(); ++i)
 	{
 		if((*i)->school == -1 || (*i)->school == (int32)GetProto()->School)
 		{

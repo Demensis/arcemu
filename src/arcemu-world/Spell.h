@@ -1991,7 +1991,7 @@ class SERVER_DECL Spell : public EventableObject
 							this->Dur = 0;
 						c_dur = this->Dur;
 					}
-					if((int32)sd->Duration1 >= 0 && !c_dur)
+					if(!c_dur)
 					{
 						this->Dur = sd->Duration1;
 					}
@@ -2113,6 +2113,25 @@ class SERVER_DECL Spell : public EventableObject
 		void SendCastSuccess(const uint64 & guid);
 
 		bool duelSpell;
+
+		////////////////////////////////////////////////////////////////////////////////
+		//bool DuelSpellNoMoreValid()
+		//  Tells if the Spell was being casted while dueling but now the duel is over
+		//
+		//Return Value
+		//  Returns true if Spell is now invalid because the duel is over.
+		//  Returns false if Spell is valid.
+		//
+		///////////////////////////////////////////////////////////////////////////////
+		bool DuelSpellNoMoreValid()
+		{
+			if(duelSpell && (
+	            (p_caster != NULL && p_caster->GetDuelState() != DUEL_STATE_STARTED) ||
+	            (u_caster != NULL && u_caster->IsPet() && TO< Pet* >(u_caster)->GetPetOwner() && TO< Pet* >(u_caster)->GetPetOwner()->GetDuelState() != DUEL_STATE_STARTED)))
+				return true;
+			else
+				return false;
+		}
 
 		ARCEMU_INLINE void safe_cancel()
 		{

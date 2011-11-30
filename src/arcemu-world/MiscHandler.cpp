@@ -438,7 +438,7 @@ void WorldSession::HandleLootReleaseOpcode(WorldPacket & recv_data)
 		pCreature->loot.looters.erase(_player->GetLowGUID());
 		if(pCreature->loot.gold <= 0)
 		{
-			for(std::vector<__LootItem>::iterator i = pCreature->loot.items.begin(); i != pCreature->loot.items.end(); i++)
+			for(std::vector<__LootItem>::iterator i = pCreature->loot.items.begin(); i != pCreature->loot.items.end(); ++i)
 				if(i->iItemsCount > 0)
 				{
 					ItemPrototype* proto = i->item.itemproto;
@@ -1565,7 +1565,7 @@ void WorldSession::HandleGameObjectUse(WorldPacket & recv_data)
 					}
 
 					SpellEntry* info = NULL;
-					if(goinfo->ID == 36727)   // summon portal
+					if(goinfo->ID == 36727 || goinfo->ID == 194108)   // summon portal
 					{
 						if(!obj->m_ritualtarget)
 							return;
