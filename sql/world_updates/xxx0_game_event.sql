@@ -92,7 +92,7 @@ CREATE TABLE `game_event_scripts` (
   `data_1` int(10) unsigned NOT NULL,
   `data_2` int(10) unsigned NOT NULL,
   `data_3` int(10) unsigned NOT NULL,
-  `say_on_event_start` varchar(255) DEFAULT NULL,
+  `say_on_event_start` varchar(255) DEFAULT "",
   UNIQUE KEY `event_id` (`event_id`,`sql_id`,`type`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 
