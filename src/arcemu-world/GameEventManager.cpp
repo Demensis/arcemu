@@ -20,7 +20,6 @@ GameEventMgr::~GameEventMgr()
 	m_GameEventMap.clear();
 
 	// enough?
-	m_creaturewaypoints.clear();
 	m_creaturespawns.clear();
 	m_gameobjectspawns.clear();
 }
@@ -244,7 +243,8 @@ void GameEventMgr::ProcessObjectsAndScriptsProc(QueryResultVector & results, uin
 		while(query->NextRow());
 	}
 
-	// waypoints
+	// waypoints -- the created objects will be deleted automatically by creature class on despawn
+	std::map<uint32, std::map<uint32, std::list<WayPoint *>>> waypoints;
 	if(QueryResult *query = results[1].result)
 	{
 		do
@@ -267,7 +267,7 @@ void GameEventMgr::ProcessObjectsAndScriptsProc(QueryResultVector & results, uin
 			wp->forwardskinid = f[12].GetUInt32();
 			wp->backwardskinid = f[13].GetUInt32();
 
-			m_creaturewaypoints[id][spawnid].push_back(wp);
+			waypoints[id][spawnid].push_back(wp);
 		}
 		while(query->NextRow());
 	}
@@ -339,7 +339,7 @@ void GameEventMgr::ProcessObjectsAndScriptsProc(QueryResultVector & results, uin
 
 			// add waypoints
 			crt->m_custom_waypoint_map = new WayPointMap();
-			for(std::list<WayPoint *>::iterator itr = m_creaturewaypoints[id][spawn_id].begin(); itr != m_creaturewaypoints[id][spawn_id].end(); itr++)
+			for(std::list<WayPoint *>::iterator itr = waypoints[id][spawn_id].begin(); itr != waypoints[id][spawn_id].end(); itr++)
 			{
 				// use custom waypoint map, so we avoid saving it to database
 				crt->m_custom_waypoint_map->push_back(*itr);
@@ -436,12 +436,6 @@ void GameEventMgr::DespawnEvent(uint32 id)
 			}
 		}
 		mitr->second.clear();
-	}
-
-	// waypoints
-	for(std::map<uint32, std::list<WayPoint *>>::iterator sitr = m_creaturewaypoints[id].begin(); sitr != m_creaturewaypoints[id].end(); sitr++)
-	{
-		sitr->second.clear();
 	}
 
 	// gameobjects

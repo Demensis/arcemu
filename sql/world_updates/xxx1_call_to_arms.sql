@@ -2,12 +2,12 @@
 /* each starts exactly one week after last one */
 
 /* These are based on ingame calendar */
-INSERT INTO `game_event` (`event_id`, `start_time`, `length`, `occurence`, `name`) VALUES (1,1320364860,345480,3628800,"Call to Arms: Alterac Valley");
-INSERT INTO `game_event` (`event_id`, `start_time`, `length`, `occurence`, `name`) VALUES (2,1320969660,345480,3628800,"Call to Arms: Warsong Gulch");
-INSERT INTO `game_event` (`event_id`, `start_time`, `length`, `occurence`, `name`) VALUES (3,1321574460,345480,3628800,"Call to Arms: Strand of the Ancients");
-INSERT INTO `game_event` (`event_id`, `start_time`, `length`, `occurence`, `name`) VALUES (4,1322179260,345480,3628800,"Call to Arms: Isle of Conquest");
-INSERT INTO `game_event` (`event_id`, `start_time`, `length`, `occurence`, `name`) VALUES (5,1322784060,345480,3628800,"Call to Arms: Arathi Basin");
-INSERT INTO `game_event` (`event_id`, `start_time`, `length`, `occurence`, `name`) VALUES (6,1323388860,345480,3628800,"Call to Arms: Eye of the Storm");
+INSERT INTO `game_event` (`event_id`, `start_time`, `length`, `occurence`, `name`) VALUES (1,1320364860,345480,362880,"Call to Arms: Alterac Valley");
+INSERT INTO `game_event` (`event_id`, `start_time`, `length`, `occurence`, `name`) VALUES (2,1320969660,345480,362880,"Call to Arms: Warsong Gulch");
+INSERT INTO `game_event` (`event_id`, `start_time`, `length`, `occurence`, `name`) VALUES (3,1321574460,345480,362880,"Call to Arms: Strand of the Ancients");
+INSERT INTO `game_event` (`event_id`, `start_time`, `length`, `occurence`, `name`) VALUES (4,1322179260,345480,362880,"Call to Arms: Isle of Conquest");
+INSERT INTO `game_event` (`event_id`, `start_time`, `length`, `occurence`, `name`) VALUES (5,1322784060,345480,362880,"Call to Arms: Arathi Basin");
+INSERT INTO `game_event` (`event_id`, `start_time`, `length`, `occurence`, `name`) VALUES (6,1323388860,345480,362880,"Call to Arms: Eye of the Storm");
 
 
 /* Alterac Valley */

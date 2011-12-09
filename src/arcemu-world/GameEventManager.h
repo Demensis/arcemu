@@ -43,7 +43,6 @@ enum GamEventScriptTypes
 };
 
 typedef std::map<uint32, EventInfo*> GameEventMap;
-typedef std::map<uint32, std::map<uint32, std::list<WayPoint *>>> GameEventWaypointMap;
 typedef std::map<uint32, std::map<uint32, std::list<uint32>>> GameEventSpawnMap;
 typedef std::map<uint32, set<EventScript*>> GameEventScriptMap;
 
@@ -53,7 +52,6 @@ private:
 
 	// private storages
 	GameEventMap m_GameEventMap; // contains basic info about all events
-	GameEventWaypointMap m_creaturewaypoints;
 	GameEventSpawnMap m_creaturespawns;
 	GameEventSpawnMap m_gameobjectspawns;
 	GameEventScriptMap m_GameEventScriptBackup;
