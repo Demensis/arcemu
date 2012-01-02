@@ -321,6 +321,12 @@ void GameEventMgr::ProcessObjectsAndScriptsProc(QueryResultVector & results, uin
 
 			// get mapmgr for spawn
 			MapMgr * mgr = sInstanceMgr.GetMapMgr(mapid);
+			if(mgr == NULL)
+			{
+				// So this is a really interesting situation!
+				Log.Success("GameEvent","Failed to spawn creature spawn %u for event %u on nonexistant map %u", spawn.id, id, mapid);
+				continue;
+			}
 
 			// spawn the creature
 			//Creature * crt = mgr->GetInterface()->SpawnCreature(&spawn, true);
