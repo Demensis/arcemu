@@ -652,6 +652,9 @@ class SERVER_DECL World : public Singleton<World>, public EventableObject
 			bool broadcast;
 		} m_limits;
 
+		int thread_loop_interval; // used for GameEventManager
+		bool optimized_game_event_saving; // used for GameEventManager
+
 		int GMTTimeZone;
 
 		void CharacterEnumProc(QueryResultVector & results, uint32 AccountId);

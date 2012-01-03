@@ -24,8 +24,6 @@
 
 #include "StdAfx.h"
 
-#define THREAD_LOOP_INTERVAL 120 // seconds
-
 DayWatcherThread::DayWatcherThread()
 {
 	m_running = true;
@@ -138,6 +136,9 @@ bool DayWatcherThread::run()
 	set_tm_pointers();
 	m_busy = false;
 
+	// wait about 15 seconds to ensure that script system is loaded
+	cond.Wait(15 * 1000);
+
 	while(GetThreadState() != THREADSTATE_TERMINATE)
 	{
 		m_busy = true;
@@ -153,11 +154,14 @@ bool DayWatcherThread::run()
 		if(m_dirty)
 			update_settings();
 
+		// check for game events here
+		sGameEventMgr.CheckForEvents();
+
 		m_busy = false;
 		if(GetThreadState() == THREADSTATE_TERMINATE)
 			break;
 
-		cond.Wait(THREAD_LOOP_INTERVAL * 1000);
+		cond.Wait(sWorld.thread_loop_interval * 60 * 1000);
 
 		if(!m_running)
 			break;
