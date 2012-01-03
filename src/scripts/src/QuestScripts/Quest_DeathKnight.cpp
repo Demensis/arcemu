@@ -303,6 +303,7 @@ class UnworthyInitiate : public MoonScriptCreatureAI
 					SetCanEnterCombat( true );
 					_unit->GetAIInterface()->AttackReaction( plr, 500, 0 );
 					_unit->GetAIInterface()->setNextTarget( plr );
+					_unit->GetAIInterface()->SetAIState(STATE_ATTACKING);
 					_unit->GetAIInterface()->EventEnterCombat( plr, 0 );
 				}
 
@@ -400,6 +401,40 @@ bool QuestCast(Player * pPlayer, SpellEntry * pSpell, Spell * spell)
 	return true;
 }
 
+bool EyeOfAcherus(uint32 i, Spell * pSpell)
+{
+	if( i == 2 )
+	{
+		Player * p_caster = pSpell->p_caster;
+		CreatureProto * proto = CreatureProtoStorage.LookupEntry(28511);
+		if( !proto )
+			return true;
+
+		uint32 summonpropid = pSpell->m_spellInfo->EffectMiscValueB[ i ];
+		SummonPropertiesEntry * spe = dbcSummonProperties.LookupEntry( summonpropid );
+		if( !spe )
+			return true;
+
+		p_caster->DismissActivePets();
+		p_caster->RemoveFieldSummon();
+
+		Summon * s = p_caster->GetMapMgr()->CreateSummon(proto->Id, SUMMONTYPE_POSSESSED);
+		if(s == NULL)
+			return true;
+
+		LocationVector v(2362.81f, -5659.71f, 502.31f, 3.776f);
+
+		s->Load(proto, p_caster, v, pSpell->m_spellInfo->Id, spe->Slot - 1);
+		s->SetCreatedBySpell(pSpell->m_spellInfo->Id);
+		s->PushToWorld(p_caster->GetMapMgr());
+		//s->Root();
+
+		p_caster->Possess(s->GetGUID(), 1000);
+	}
+
+	return true;
+}
+
 void SetupDeathKnight(ScriptMgr* mgr)
 {
 	GossipScript* SGO = new ScourgeGryphonOne();
@@ -425,9 +460,12 @@ void SetupDeathKnight(ScriptMgr* mgr)
 	mgr->register_creature_script(CN_INITIATE_3, &UnworthyInitiate::Create);
 	mgr->register_creature_script(CN_INITIATE_4, &UnworthyInitiate::Create);
 	mgr->register_creature_script(CN_INITIATE_5, &UnworthyInitiate::Create);
-
 	mgr->register_creature_script(25462, &InServiceOfLichKing::Create);
+
 	mgr->register_quest_script(12687, new IntoTheRealmOfShadows());
 
 	mgr->register_hook(SERVER_HOOK_EVENT_ON_CAST_SPELL, (void*)QuestCast);
+
+	// we must have third effect as dummy to allow us script this
+	mgr->register_dummy_spell(51852, &EyeOfAcherus);
 }
