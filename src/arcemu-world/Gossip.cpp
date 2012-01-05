@@ -306,8 +306,6 @@ Gossip::Script* Gossip::Script::GetInterface(Creature* creature)
 				return &sScriptMgr.trainerScript_;
 		}
 	}
-	else if(creature->isTabardDesigner())
-		return &sScriptMgr.tabardScript_;
 	else if(creature->isTaxi())
 		return &sScriptMgr.flightmasterScript_;
 	else if(creature->isStableMaster())
@@ -318,6 +316,8 @@ Gossip::Script* Gossip::Script::GetInterface(Creature* creature)
 		return &sScriptMgr.auctioneerScript_;
 	else if(creature->isCharterGiver())
 		return &sScriptMgr.chartergiverScript_;
+	else if(creature->isTabardDesigner())
+		return &sScriptMgr.tabardScript_;
 	else if(creature->isVendor())
 		return &sScriptMgr.vendorScript_;
 
