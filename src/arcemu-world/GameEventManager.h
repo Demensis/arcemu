@@ -29,7 +29,7 @@ struct EventScript
 	uint32 mapid;
 };
 
-enum GamEventScriptTypes
+enum GameEventScriptTypes
 {
 	CREATURE_CHANGE_SCRIPTED_CHANGE = 0,
 	CREATURE_CHANGE_EMOTE,
