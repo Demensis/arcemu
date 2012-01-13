@@ -57,6 +57,7 @@ struct LocalizedQuest
 	char* IncompleteText;
 	char* EndText;
 	char* ObjectiveText[4];
+	char* CompletedText;
 };
 
 struct LocalizedWorldBroadCast

@@ -53,12 +53,22 @@ void WorldSession::HandleNameQueryOpcode(WorldPacket & recv_data)
 //////////////////////////////////////////////////////////////
 void WorldSession::HandleQueryTimeOpcode(WorldPacket & recv_data)
 {
+	// find out next daily reset time
+	time_t currentTime = UNIXTIME;
+	tm * nextReset = localtime(&currentTime);
+	// if we already reseted dailies today, add 1 day to the date
+	if((nextReset->tm_hour > 4) || (nextReset->tm_hour == 4 && nextReset->tm_min > 0))
+	{
+		nextReset->tm_mday++;
+	}
+	nextReset->tm_hour = 4; // On arcemu, dailes are reseted at 4.00 am
+	nextReset->tm_min = 0;
+	nextReset->tm_sec = 0;
 
 	WorldPacket data(SMSG_QUERY_TIME_RESPONSE, 4 + 4);
-	data << (uint32)UNIXTIME;
-	data << (uint32)0; //VLack: 3.1; thanks Stewart for reminding me to have the correct structure even if it seems the old one still works.
+	data << uint32(currentTime);
+	data << uint32(mktime(nextReset) - UNIXTIME);
 	SendPacket(&data);
-
 }
 
 //////////////////////////////////////////////////////////////

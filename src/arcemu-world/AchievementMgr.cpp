@@ -1277,7 +1277,7 @@ void AchievementMgr::UpdateAchievementCriteria(AchievementCriteriaTypes type)
 					for(; qc != GetPlayer()->m_finishedQuests.end(); ++qc)
 					{
 						Quest* qst = QuestStorage.LookupEntry(*qc);
-						if(qst && qst->zone_id == achievementCriteria->complete_quests_in_zone.zoneID)
+						if(qst && qst->zone_or_sort == achievementCriteria->complete_quests_in_zone.zoneID)
 						{
 							++qcinzone;
 						}

@@ -33,49 +33,64 @@ WorldPacket* WorldSession::BuildQuestQueryResponse(Quest* qst)
 	uint32 i;
 
 	*data << uint32(qst->id);						// Quest ID
-	*data << uint32(2);								// Unknown, always seems to be 2
+	*data << uint32(qst->method);					// Method - 2 shows objectives etc. (normal Q) 0 - skip objectives
 	*data << int32(qst->questlevel);				// Quest level
 	*data << uint32(qst->min_level);				// Quest required level
 
-	if(qst->quest_sort > 0)
-		*data << int32(-(int32)qst->quest_sort);	// Negative if pointing to a sort.
-	else
-		*data << uint32(qst->zone_id);				// Positive if pointing to a zone.
+	*data << int32(qst->zone_or_sort);				// Positive if pointing to a zone, negative is sort
 
 	*data << uint32(qst->type);						// Info ID / Type
-	*data << qst->suggestedplayers;					// suggested players
-	*data << uint32(qst->required_rep_faction);		// Faction ID
-	*data << uint32(qst->required_rep_value);		// Faction Amount
-	*data << uint32(0);								// Unknown (always 0)
-	*data << uint32(0);								// Unknown (always 0)
+	*data << uint32(qst->suggestedplayers);			// suggested players
+	// (loop 2 times)
+	for(i = 0; i < 2; ++i)
+	{
+		*data << uint32(qst->required_rep_faction[i]);	// Required reputation
+		*data << uint32(qst->required_rep_value[i]);	// Required reputation value
+	}
 	*data << uint32(qst->next_quest_id);			// Next Quest ID
-	*data << uint32(0);								// Column id +1 from QuestXp.dbc, entry is quest level
-	*data << uint32(sQuestMgr.GenerateRewardMoney(_player, qst));	// Copper reward
-	*data << uint32(qst->reward_money < 0 ? -qst->reward_money : 0);		// Required Money
-	*data << uint32(qst->reward_spell);                                 // Spell added to spellbook upon completion
+	*data << uint32(qst->RewXPId);					// Column id +1 from QuestXp.dbc, entry is quest level
+	*data << int32(qst->reward_money);				// Copper reward or required money
+	*data << uint32(qst->rew_money_at_max_level);	// Required Money
+	*data << uint32(qst->reward_spell);				// Spell added to spellbook upon completion
 	*data << uint32(qst->effect_on_player);			// Spell casted on player upon completion
 	*data << uint32(qst->bonushonor);				// 2.3.0 - bonus honor
-	*data << float(0);								// 3.3.0 - some multiplier for honor
+	*data << float(qst->bonushonorraw);				// gives honor based on TeamContributionPoints.dbc
 	*data << uint32(qst->srcitem);					// Item given at the start of a quest (srcitem)
 	*data << uint32(qst->quest_flags);				// Quest Flags
-	*data << qst->rewardtitleid;					// 2.4.0 unk
-	*data << uint32(0);								// playerkillcount
-	*data << qst->rewardtalents;
-	*data << uint32(0);								// 3.3.0 Unknown
-	*data << uint32(0);								// 3.3.0 Unknown
+	*data << uint32(qst->rewardtitleid);			// 2.4.0 unk
+	*data << uint32(qst->requiredplayerkillcount);	// playerkillcount - 6 quests only in 3.3.2
+	*data << uint32(qst->rewardtalents);
+	*data << uint32(qst->bonusarenapoints);			// 3.3.0 Bonus arena points
+	*data << uint32(qst->unk1);						// 3.3.0 rew rep show mask?
 
 	// (loop 4 times)
 	for(i = 0; i < 4; ++i)
 	{
-		*data << qst->reward_item[i];				// Forced Reward Item [i]
-		*data << qst->reward_itemcount[i];			// Forced Reward Item Count [i]
+		if( qst->quest_flags & QUEST_FLAG_HIDDEN_REWARDS)
+		{
+			*data << uint32(0);
+			*data << uint32(0);
+		}
+		else
+		{
+			*data << qst->reward_item[i];				// Forced Reward Item [i]
+			*data << qst->reward_itemcount[i];			// Forced Reward Item Count [i]
+		}
 	}
 
 	// (loop 6 times)
 	for(i = 0; i < 6; ++i)
 	{
-		*data << qst->reward_choiceitem[i];			// Choice Reward Item [i]
-		*data << qst->reward_choiceitemcount[i];	// Choice Reward Item Count [i]
+		if( qst->quest_flags & QUEST_FLAG_HIDDEN_REWARDS)
+		{
+			*data << uint32(0);
+			*data << uint32(0);
+		}
+		else
+		{
+			*data << qst->reward_choiceitem[i];			// Choice Reward Item [i]
+			*data << qst->reward_choiceitemcount[i];	// Choice Reward Item Count [i]
+		}
 	}
 
 	// (loop 5 times) - these 3 loops are here to allow displaying rep rewards in client (not handled in core yet)
@@ -86,18 +101,18 @@ WorldPacket* WorldSession::BuildQuestQueryResponse(Quest* qst)
 
 	for(i = 0; i < 5; ++i)
 	{
-		*data << uint32(0);							// column index in QuestFactionReward.dbc but use unknown
+		*data << uint32(qst->reward_repvalue[i]);	// column index in QuestFactionReward.dbc
 	}
 
 	for(i = 0; i < 5; ++i)					// Unknown
 	{
-		*data << uint32(0);
+		*data << uint32(qst->reward_repvalueoverride[i]);
 	}
 
-	*data << qst->point_mapid;						// Unknown
-	*data << qst->point_x;							// Unknown
-	*data << qst->point_y;							// Unknown
-	*data << qst->point_opt;						// Unknown
+	*data << qst->point_mapid;						// Poi mapid
+	*data << qst->point_x;							// Poi X
+	*data << qst->point_y;							// Poi Y
+	*data << qst->point_opt;						// ?
 
 	if(lci)
 	{
@@ -105,7 +120,7 @@ WorldPacket* WorldSession::BuildQuestQueryResponse(Quest* qst)
 		*data << lci->Objectives;
 		*data << lci->Details;
 		*data << lci->EndText;
-		*data << uint8(0);
+		*data << lci->CompletedText;
 	}
 	else
 	{
@@ -113,15 +128,18 @@ WorldPacket* WorldSession::BuildQuestQueryResponse(Quest* qst)
 		*data << qst->objectives;					// Objectives / description
 		*data << qst->details;						// Details
 		*data << qst->endtext;						// Subdescription
-		*data << uint8(0);							// most 3.3.0 quests i seen have something like "Return to NPCNAME"
+		*data << qst->completedtext;				// text shown after completing objectives
 	}
 
 	for(i = 0; i < 4; ++i)
 	{
-		*data << qst->required_mob[i];				// Kill mob entry ID [i]
+		if(qst->required_mobtype[i] == QUEST_MOB_TYPE_GAMEOBJECT)
+			*data << uint32(qst->required_mob[i]*(-1)|0x80000000);	// go entry ID [i]
+		else
+			*data << uint32(qst->required_mob[i]);	// Kill mob entry ID [i]
 		*data << qst->required_mobcount[i];			// Kill mob count [i]
-		*data << uint32(0);							// Unknown
-		*data << uint32(0);							// 3.3.0 Unknown
+		*data << uint32(qst->ReqSourceId[i]);		// RequiredSourceId
+		*data << uint32(qst->ReqSourceCount[i]);	// RequiredSourceCount
 	}
 
 	for(i = 0; i < MAX_REQUIRED_QUEST_ITEM; ++i)
@@ -130,20 +148,13 @@ WorldPacket* WorldSession::BuildQuestQueryResponse(Quest* qst)
 		*data << qst->required_itemcount[i];		// Collect item count [i]
 	}
 
-	if(lci)
+	for(i = 0; i < 4; ++i)
 	{
-		*data << lci->ObjectiveText[0];
-		*data << lci->ObjectiveText[1];
-		*data << lci->ObjectiveText[2];
-		*data << lci->ObjectiveText[3];
-	}
-	else
-	{
-		*data << qst->objectivetexts[0];				// Objective 1 - Used as text if mob not set
-		*data << qst->objectivetexts[1];				// Objective 2 - Used as text if mob not set
-		*data << qst->objectivetexts[2];				// Objective 3 - Used as text if mob not set
-		*data << qst->objectivetexts[3];				// Objective 4 - Used as text if mob not set
-	}
+		if(lci)
+			*data << lci->ObjectiveText[i];
+		else
+			*data << qst->objectivetexts[i];
+ 	}
 
 	return data;
 }
@@ -312,7 +323,7 @@ bool QuestLogEntry::CanBeFinished()
 {
 	uint32 i;
 
-	if(m_quest->iscompletedbyspelleffect && ( completed == QUEST_INCOMPLETE ) )
+	if(m_quest->HasSpecialFlag(QUEST_SPECIAL_FLAG_SCRIPTED) && ( completed == QUEST_INCOMPLETE ) )
 		return false;
 
 	if( completed == QUEST_FAILED )

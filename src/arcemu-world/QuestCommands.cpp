@@ -278,7 +278,7 @@ bool ChatHandler::HandleQuestStartCommand(const char* args, WorldSession* m_sess
 						Item* item = objmgr.CreateItem(qst->srcitem, plr);
 						if(item)
 						{
-							item->SetStackCount(qst->srcitemcount ? qst->srcitemcount : 1);
+							item->SetStackCount(1);
 							if(!plr->GetItemInterface()->AddItemToFreeSlot(item))
 								item->DeleteMe();
 						}
@@ -536,15 +536,16 @@ bool ChatHandler::HandleQuestFinishCommand(const char* args, WorldSession* m_ses
 				}
 			}
 			// if daily then append to finished dailies
-			if(qst->is_repeatable == arcemu_QUEST_REPEATABLE_DAILY)
+			if( qst->HasFlag(QUEST_FLAG_DAILY) )
 				plr->PushToFinishedDailies(qst->id);
 			// Remove quests that are listed to be removed on quest complete.
-			set<uint32>::iterator iter = qst->remove_quest_list.begin();
+			// QUEST SYSTEM TO-DO
+			/*set<uint32>::iterator iter = qst->none.begin();
 			for(; iter != qst->remove_quest_list.end(); ++iter)
 			{
 				if(!plr->HasFinishedQuest((*iter)))
 					plr->AddToFinishedQuests((*iter));
-			}
+			}*/
 #ifdef ENABLE_ACHIEVEMENTS
 			plr->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUEST_COUNT, 1, 0, 0);
 			if(qst->reward_money > 0)
@@ -557,7 +558,8 @@ bool ChatHandler::HandleQuestFinishCommand(const char* args, WorldSession* m_ses
 				}
 				plr->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_QUEST_REWARD_GOLD, qst->reward_money, 0, 0);
 			}
-			plr->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUESTS_IN_ZONE, qst->zone_id, 0, 0);
+			if( qst->zone_or_sort > 0 )
+				plr->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUESTS_IN_ZONE, qst->zone_or_sort, 0, 0);
 			plr->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUEST, qst->id, 0, 0);
 #endif
 		}
