@@ -493,7 +493,7 @@ void GameEventMgr::DoScript(uint32 event_id, uint32 sql_id, uint8 type, uint32 d
 	es->data_2 = 0;
 	es->data_3 = 0;
 
-	if( say )
+	if( strlen(say) )
 	{
 		c->SendChatMessage(CHAT_MSG_MONSTER_SAY, LANG_UNIVERSAL, say);
 	}
