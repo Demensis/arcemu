@@ -40,6 +40,7 @@ enum GameEventScriptTypes
 	CREATURE_CAST_SPELL_ON_EVENT_STOP,
 	CREATURE_CHANGE_UPDATE_FIELD,
 	CREATURE_CHANGE_DESPAWN,
+	GAMEOBJECT_CHANGE_STATE = 100,
 };
 
 typedef std::map<uint32, EventInfo*> GameEventMap;

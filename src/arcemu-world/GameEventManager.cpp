@@ -480,9 +480,18 @@ void GameEventMgr::DoScript(uint32 event_id, uint32 sql_id, uint8 type, uint32 d
 	if( mapmgr == NULL )
 		return;
 
-	Creature * c = mapmgr->GetSqlIdCreature( sql_id );
-	if( c == NULL )
-		return;
+	Creature *c;
+	GameObject *go;
+	if(type < GAMEOBJECT_CHANGE_STATE)
+	{
+		c = mapmgr->GetSqlIdCreature( sql_id );
+		if( c == NULL ) return;
+	}
+	else
+	{
+		go = mapmgr->GetSqlIdGameObject( sql_id );
+		if( go == NULL ) return;
+	}
 
 	// create backup for original values
 	EventScript * es = new EventScript();
@@ -613,6 +622,12 @@ void GameEventMgr::DoScript(uint32 event_id, uint32 sql_id, uint8 type, uint32 d
 			delete es;
 			return;
 		} break;
+
+		case GAMEOBJECT_CHANGE_STATE:
+		{
+			es->data_1 = (uint32)go->GetState();
+			go->SetState((uint8)data1);
+		} break;
 	}
 
 	// insert event into storage
@@ -649,9 +664,18 @@ void GameEventMgr::ScriptedBackToOrig(uint32 event_id)
 		if( mapmgr == NULL )
 			return;
 
-		Creature * c = mapmgr->GetSqlIdCreature( sql_id );
-		if( c == NULL )
-			return;
+		Creature *c;
+		GameObject *go;
+		if(type < GAMEOBJECT_CHANGE_STATE)
+		{
+			c = mapmgr->GetSqlIdCreature( sql_id );
+			if( c == NULL ) return;
+		}
+		else
+		{
+			go = mapmgr->GetSqlIdGameObject( sql_id );
+			if( go == NULL ) return;
+		}
 
 		switch( type )
 		{
@@ -727,6 +751,11 @@ void GameEventMgr::ScriptedBackToOrig(uint32 event_id)
 			case CREATURE_CHANGE_UPDATE_FIELD:
 			{
 				c->SetUInt32Value(data1, data2);
+			} break;
+
+			case GAMEOBJECT_CHANGE_STATE:
+			{
+				go->SetState((uint8)data1);
 			} break;
 		}
 	}
