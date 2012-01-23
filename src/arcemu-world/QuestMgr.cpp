@@ -615,20 +615,41 @@ void QuestMgr::BuildRequestItems(WorldPacket* data, Quest* qst, Object* qst_give
 
 void QuestMgr::BuildQuestComplete(Player* plr, Quest* qst)
 {
-	uint32 xp ;
+	uint32 xp = 0;
+	uint32 rewmoney = 0;
 	uint32 currtalentpoints = plr->GetCurrentTalentPoints();
 	uint32 rewardtalents = qst->rewardtalents;
 	uint32 playerlevel = plr->getLevel();
 
 	if(playerlevel >= plr->GetMaxLevel())
 	{
-		xp = 0;
+		if(qst->rew_money_at_max_level)
+			rewmoney += float2int32(qst->rew_money_at_max_level * sWorld.getRate(RATE_MONEY));
+
+		if(qst->reward_money != 0)
+			rewmoney += qst->reward_money > 0 ? float2int32(qst->reward_money * sWorld.getRate(RATE_MONEY)) : qst->reward_money;
 	}
 	else
 	{
-		xp = float2int32(GenerateQuestXP(plr, qst) * sWorld.getRate(RATE_QUESTXP));
-		plr->GiveXP(xp, 0, false);
+		// do not reward XP for repeatable quest if already rewarded
+		if( !(IsQuestRepeatable(qst) && plr->HasFinishedQuest(qst->id)) )
+		{
+			xp = float2int32(GenerateQuestXP(plr, qst) * sWorld.getRate(RATE_QUESTXP));
+			plr->GiveXP(xp, 0, false);
+		}
+
+		if(qst->reward_money != 0)
+			rewmoney += qst->reward_money > 0 ? float2int32(qst->reward_money * sWorld.getRate(RATE_MONEY)) : qst->reward_money;
 	}
+
+	GiveQuestRewardReputation(plr, qst);
+	plr->ModGold(rewmoney);
+
+	// make honor reward
+	uint32 bonushonor = uint32(ceil(qst->bonushonor*(-0.53177f + 0.59357f * exp((plr->getLevel() + 23.54042f) / 26.07859f))));
+
+	HonorHandler::AddHonorPointsToPlayer(plr, bonushonor);
+	plr->RecalculateHonor();
 
 	if( currtalentpoints <= ( playerlevel - 9 - rewardtalents ) )
 		plr->AddTalentPointsToAllSpec( rewardtalents );
@@ -641,13 +662,13 @@ void QuestMgr::BuildQuestComplete(Player* plr, Quest* qst)
 
 	data << uint32(qst->id);
 	data << uint32(xp);
-	data << uint32(GenerateRewardMoney(plr, qst));
-	data << uint32(qst->bonushonor * 10);
+	data << uint32(rewmoney);
+	data << uint32(bonushonor * 10);
 	data << uint32(rewardtalents);
 	data << uint32(qst->bonusarenapoints);
 	data << uint32(qst->count_reward_item);   //Reward item count
 
-	for(uint32 i = 0; i < 4; ++i)
+	for(uint32 i = 0; i < qst->count_reward_item; ++i)
 	{
 		if(qst->reward_item[i])
 		{
@@ -1077,10 +1098,41 @@ void QuestMgr::AreaExplored(Player* plr, uint32 QuestID)
 	}
 }
 
-void QuestMgr::GiveQuestRewardReputation(Player* plr, Quest* qst, Object* qst_giver)
+void QuestMgr::GiveQuestRewardReputation(Player* plr, Quest* qst)
 {
+	// quest reputation reward/loss
+    for(int i = 0; i < 5; ++i)
+    {
+		if (!qst->reward_repfaction[i])
+            continue;
+
+		uint32 row = ((qst->reward_repvalue[i] < 0) ? 1 : 0) + 1;
+		uint32 field = abs(qst->reward_repvalue[i]);
+
+		if(QuestFactionRewardEntry * pRow = dbcQuestFactionReward.LookupEntry(row))
+		{
+			int32 repPoints = pRow->RewValue[field];
+			if (!repPoints)
+				continue;
+
+			repPoints = float2int32( repPoints * sWorld.getRate( RATE_QUESTREPUTATION ) );
+
+			// TODO: some quests has limit neutral which means column is 0, option could be set it to 1 :P
+			if(qst->reward_replimit[i])
+			{
+				if(plr->GetStanding(qst->reward_repfaction[i]) >= qst->reward_replimit[i])
+					continue;
+
+				if((plr->GetStanding(qst->reward_repfaction[i])+repPoints) >= qst->reward_replimit[i])
+					repPoints = (plr->GetStanding(qst->reward_repfaction[i])+repPoints) - qst->reward_replimit[i];
+			}
+
+			plr->ModStanding(qst->reward_repfaction[i], repPoints);
+		}
+	}
+
 	// Reputation reward
-	for(int z = 0; z < 6; z++)
+/*	for(int z = 0; z < 6; z++)
 	{
 		uint32 fact = 19;   // default to 19 if no factiondbc
 		int32 amt  = float2int32(GenerateQuestXP(plr, qst) * 0.1f);      // guess
@@ -1109,7 +1161,7 @@ void QuestMgr::GiveQuestRewardReputation(Player* plr, Quest* qst, Object* qst_gi
 
 		amt = float2int32(amt * sWorld.getRate(RATE_QUESTREPUTATION));     // reputation rewards
 		plr->ModStanding(fact, amt);
-	}
+	}*/
 }
 
 void QuestMgr::OnQuestAccepted(Player* plr, Quest* qst, Object* qst_giver)
@@ -1165,10 +1217,8 @@ void QuestMgr::OnQuestFinished(Player* plr, Quest* qst, Object* qst_giver, uint3
 	}
 
 	//details: hmm as i can remember, repeatable quests give faction rep still after first completion
-	if(IsQuestRepeatable(qst) || IsQuestDaily(qst))
+	if(IsQuestRepeatable(qst))
 	{
-		// Reputation reward
-		GiveQuestRewardReputation(plr, qst, qst_giver);
 		// Static Item reward
 		for(uint32 i = 0; i < 4; ++i)
 		{
@@ -1274,18 +1324,12 @@ void QuestMgr::OnQuestFinished(Player* plr, Quest* qst, Object* qst_giver, uint3
 			}
 		}
 
-		plr->ModGold(GenerateRewardMoney(plr, qst));
-
 		// if daily then append to finished dailies
 		if(qst->HasFlag(QUEST_FLAG_DAILY))
 			plr->PushToFinishedDailies(qst->id);
 	}
 	else
 	{
-		plr->ModGold(GenerateRewardMoney(plr, qst));
-
-		// Reputation reward
-		GiveQuestRewardReputation(plr, qst, qst_giver);
 		// Static Item reward
 		for(uint32 i = 0; i < 4; ++i)
 		{

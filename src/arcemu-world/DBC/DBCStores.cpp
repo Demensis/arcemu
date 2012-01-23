@@ -91,6 +91,7 @@ SERVER_DECL DBCStorage< NameGenEntry > dbcNameGen;
 SERVER_DECL DBCStorage< LFGDungeonEntry > dbcLFGDungeon;
 SERVER_DECL DBCStorage< VehicleEntry > dbcVehicle;
 SERVER_DECL DBCStorage< VehicleSeatEntry > dbcVehicleSeat;
+SERVER_DECL DBCStorage<QuestFactionRewardEntry> dbcQuestFactionReward;
 
 const char* WorldMapOverlayStoreFormat = "nxiiiixxxxxxxxxxx";
 const char* BarberShopStyleEntryFormat="uuxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxuuu";
@@ -105,6 +106,7 @@ const char* GlyphSlotEntryFormat = "uuu";
 const char* skilllineentrYFormat = "uuulxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 const char* VehicleEntryfmt = "niffffiiiiiiiifffffffffffffffssssfifiixx";
 const char* VehicleSeatEntryfmt = "niiffffffffffiiiiiifffffffiiifffiiiiiiiffiiiiixxxxxxxxxxxx";
+const char* QuestFactionRewardformat = "uiiiiiiiiii";
 
 // const char* BattlemasterListEntryFormat = "uiiiiiiiiuuuuuiiiiiiiiiiiiiiiiiiuux";
 // const char* BattlemasterListEntryFormat = "uiiiiiiiiuuiiiiiiiiiiiiiiiiiuux";
@@ -427,6 +429,7 @@ bool LoadDBCs()
 	LOAD_DBC("DBC/LFGDungeons.dbc", LFGDungeonEntryformat, true, dbcLFGDungeon, false);
 	LOAD_DBC( "DBC/Vehicle.dbc", VehicleEntryfmt, true, dbcVehicle, true );
 	LOAD_DBC( "DBC/VehicleSeat.dbc", VehicleSeatEntryfmt, true, dbcVehicleSeat, false );
+	LOAD_DBC("DBC/QuestFactionReward.dbc", QuestFactionRewardformat, true, dbcQuestFactionReward, false);
 
 	return true;
 }
