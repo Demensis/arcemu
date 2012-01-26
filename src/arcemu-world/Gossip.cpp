@@ -306,6 +306,8 @@ Gossip::Script* Gossip::Script::GetInterface(Creature* creature)
 				return &sScriptMgr.trainerScript_;
 		}
 	}
+	else if(creature->isTabardDesigner())
+		return &sScriptMgr.tabardScript_;
 	else if(creature->isTaxi())
 		return &sScriptMgr.flightmasterScript_;
 	else if(creature->isStableMaster())
@@ -316,8 +318,6 @@ Gossip::Script* Gossip::Script::GetInterface(Creature* creature)
 		return &sScriptMgr.auctioneerScript_;
 	else if(creature->isCharterGiver())
 		return &sScriptMgr.chartergiverScript_;
-	else if(creature->isTabardDesigner())
-		return &sScriptMgr.tabardScript_;
 	else if(creature->isVendor())
 		return &sScriptMgr.vendorScript_;
 
@@ -535,24 +535,15 @@ void Arcemu::Gossip::CharterGiver::OnHello(Object* pObject, Player* Plr)
 	uint32 Text = objmgr.GetGossipTextForNpc(chartergiver->GetEntry());
 	if(NpcTextStorage.LookupEntry(Text) == NULL)
 		Text = Gossip::DEFAULT_TXTINDEX;
-
-	Gossip::Menu menu(pObject->GetGUID(), Text, Plr->GetSession()->language);
 	if(chartergiver->isTabardDesigner())
-	{
-		menu.AddItem(Gossip::ICON_TALK, "How do I form a guild?", 1);
-		menu.AddItem(Gossip::ICON_TABARD, Plr->GetSession()->LocalizedWorldSrv(Gossip::TABARD), 2);
-	}
+		Gossip::Menu::SendQuickMenu(pObject->GetGUID(), Text, Plr, 1, Gossip::ICON_CHAT, "How do I create a guild?");
 	else
-		menu.AddItem(Gossip::ICON_CHAT, "How do I create a arena team?", 1);
-	menu.StackSend<256>(Plr);
+		Gossip::Menu::SendQuickMenu(pObject->GetGUID(), Text, Plr, 1, Gossip::ICON_CHAT, "How do I create a arena team?");
 }
 
 void Arcemu::Gossip::CharterGiver::OnSelectOption(Object* pObject, Player* Plr, uint32 Id, const char* EnteredCode)
 {
-	if(Id == 1)
-		Plr->GetSession()->SendCharterRequest(TO_CREATURE(pObject));
-	else
-		Plr->GetSession()->SendTabardHelp(TO_CREATURE(pObject));
+	Plr->GetSession()->SendCharterRequest(TO_CREATURE(pObject));
 }
 
 /*
@@ -565,12 +556,26 @@ void Arcemu::Gossip::TabardDesigner::OnHello(Object* pObject, Player* Plr)
 	uint32 Text = objmgr.GetGossipTextForNpc(chartergiver->GetEntry());
 	if(NpcTextStorage.LookupEntry(Text) == NULL)
 		Text = Gossip::DEFAULT_TXTINDEX;
-	Gossip::Menu::SendQuickMenu(pObject->GetGUID(), Text, Plr, 1, Gossip::ICON_TABARD, Plr->GetSession()->LocalizedWorldSrv(Gossip::TABARD));
+	
+	Gossip::Menu menu(chartergiver->GetGUID(), Text, Plr->GetSession()->language);
+	menu.AddItem( Gossip::ICON_TABARD, Plr->GetSession()->LocalizedWorldSrv(Gossip::TABARD), 1 );
+	if( chartergiver->isCharterGiver() )
+		menu.AddItem( Gossip::ICON_CHAT, "How do I create a guild?", 2 );
+	
+	menu.Send(Plr);
 }
 
 void Arcemu::Gossip::TabardDesigner::OnSelectOption(Object* pObject, Player* Plr, uint32 Id, const char* EnteredCode)
 {
-	Plr->GetSession()->SendTabardHelp(TO_CREATURE(pObject));
+	switch( Id ){
+		case 1:
+			Plr->GetSession()->SendTabardHelp(TO_CREATURE(pObject));
+			break;
+		case 2:
+			if( TO_CREATURE( pObject )->isCharterGiver() )
+				Plr->GetSession()->SendCharterRequest(TO_CREATURE(pObject));
+			break;
+	}
 }
 
 /*

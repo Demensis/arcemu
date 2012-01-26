@@ -64,6 +64,7 @@ SERVER_DECL DBCStorage<ScalingStatValuesEntry> dbcScalingStatValues;
 SERVER_DECL DBCStorage<skilllinespell> dbcSkillLineSpell;
 SERVER_DECL DBCStorage<skilllineentry> dbcSkillLine;
 SERVER_DECL DBCStorage<SpellCastTime> dbcSpellCastTime;
+SERVER_DECL DBCStorage<SpellDifficultyEntry> dbcSpellDifficultyEntry;
 SERVER_DECL DBCStorage<SpellDuration> dbcSpellDuration;
 SERVER_DECL DBCStorage<SpellEntry> dbcSpell;
 SERVER_DECL DBCStorage<SpellRadius> dbcSpellRadius;
@@ -91,6 +92,7 @@ SERVER_DECL DBCStorage< NameGenEntry > dbcNameGen;
 SERVER_DECL DBCStorage< LFGDungeonEntry > dbcLFGDungeon;
 SERVER_DECL DBCStorage< VehicleEntry > dbcVehicle;
 SERVER_DECL DBCStorage< VehicleSeatEntry > dbcVehicleSeat;
+SERVER_DECL DBCStorage<QuestFactionRewardEntry> dbcQuestFactionReward;
 
 const char* WorldMapOverlayStoreFormat = "nxiiiixxxxxxxxxxx";
 const char* BarberShopStyleEntryFormat="uuxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxuuu";
@@ -105,6 +107,7 @@ const char* GlyphSlotEntryFormat = "uuu";
 const char* skilllineentrYFormat = "uuulxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 const char* VehicleEntryfmt = "niffffiiiiiiiifffffffffffffffssssfifiixx";
 const char* VehicleSeatEntryfmt = "niiffffffffffiiiiiifffffffiiifffiiiiiiiffiiiiixxxxxxxxxxxx";
+const char* QuestFactionRewardformat = "uiiiiiiiiii";
 
 // const char* BattlemasterListEntryFormat = "uiiiiiiiiuuuuuiiiiiiiiiiiiiiiiiiuux";
 // const char* BattlemasterListEntryFormat = "uiiiiiiiiuuiiiiiiiiiiiiiiiiiuux";
@@ -170,6 +173,8 @@ const char* AchievementCriteriaStoreFormat =
     "u" // index
     ;
 #endif
+
+const char* spelldifficultyentryformat = "niiii";
 
 const char* spellentryFormat =
     "u" // Id
@@ -279,9 +284,8 @@ const char* spellentryFormat =
     "x" //Added in 3.1
     "xxx" // unk 3.2.0, float!
     "x" // unk 3.2.0
-    "x"
+    "i"
     ;
-
 
 const char* itemextendedcostFormat = "uuuxuuuuuuuuuuux";
 const char* talententryFormat = "uuuuuuuuuxxxxuxxuxxxxxx";
@@ -380,6 +384,7 @@ bool LoadDBCs()
 	LOAD_DBC("DBC/Talent.dbc", talententryFormat, true, dbcTalent, false);
 	LOAD_DBC("DBC/TalentTab.dbc", talenttabentryFormat, true, dbcTalentTab, false);
 	LOAD_DBC("DBC/SpellCastTimes.dbc", spellcasttimeFormat, true, dbcSpellCastTime, false);
+	LOAD_DBC("DBC/SpellDifficulty.dbc", spelldifficultyentryformat, true, dbcSpellDifficultyEntry, false);
 	LOAD_DBC("DBC/SpellRadius.dbc", spellradiusFormat, true, dbcSpellRadius, false);
 	LOAD_DBC("DBC/SpellRange.dbc", spellrangeFormat, true, dbcSpellRange, false);
 	LOAD_DBC("DBC/SpellRuneCost.dbc", SpellRuneCostFormat, true, dbcSpellRuneCost, false);
@@ -427,6 +432,7 @@ bool LoadDBCs()
 	LOAD_DBC("DBC/LFGDungeons.dbc", LFGDungeonEntryformat, true, dbcLFGDungeon, false);
 	LOAD_DBC( "DBC/Vehicle.dbc", VehicleEntryfmt, true, dbcVehicle, true );
 	LOAD_DBC( "DBC/VehicleSeat.dbc", VehicleSeatEntryfmt, true, dbcVehicleSeat, false );
+	LOAD_DBC("DBC/QuestFactionReward.dbc", QuestFactionRewardformat, true, dbcQuestFactionReward, false);
 
 	return true;
 }

@@ -40,50 +40,70 @@ bool QuestMgr::isRepeatableQuestFinished(Player* plr, Quest* qst)
 		}
 	}
 
+	//Check for Gold
+	if ( qst->reward_money < 0 && int32(plr->GetGold()) < qst->reward_money*(-1) )
+		return false;
+
 	return true;
 }
 
 uint32 QuestMgr::PlayerMeetsReqs(Player* plr, Quest* qst, bool skiplevelcheck)
 {
 	std::list<uint32>::iterator itr;
-	uint32 status;
+	uint32 status = QMGR_QUEST_NOT_AVAILABLE;
 
-	// QUEST SYSTEM TO-DO
+	// Check pre-reqs
+	// if has finished this quest
+	if( plr->HasFinishedQuest(qst->id) )
+		return QMGR_QUEST_NOT_AVAILABLE;
 
+	// event not running
 	if( qst->event_id != 0 && !sGameEventMgr.IsEventActive( qst->event_id ) )
 		return QMGR_QUEST_NOT_AVAILABLE;
 
-	if(!sQuestMgr.IsQuestRepeatable(qst) && !sQuestMgr.IsQuestDaily(qst))
-		status = QMGR_QUEST_AVAILABLE;
-
-	if(plr->getLevel() < qst->min_level && !skiplevelcheck)
-		return QMGR_QUEST_AVAILABLELOW_LEVEL;
-
+	// not required class
 	if(qst->required_class)
-		if(!(qst->required_class & plr->getClassMask()))
+	{
+		if( !(qst->required_class & plr->getClassMask()) )
 			return QMGR_QUEST_NOT_AVAILABLE;
+	}
 
+	// not required race
 	if(qst->required_races)
 	{
 		if(!(qst->required_races & plr->getRaceMask()))
 			return QMGR_QUEST_NOT_AVAILABLE;
 	}
 
+	// not required tradeskill and enough value
 	if(qst->required_tradeskill)
 	{
-		if(!plr->_HasSkillLine(qst->required_tradeskill))
+		if( !plr->_HasSkillLine(qst->required_tradeskill) )
 			return QMGR_QUEST_NOT_AVAILABLE;
-		if(qst->required_tradeskill_value && plr->_GetSkillLineCurrent(qst->required_tradeskill) < qst->required_tradeskill_value)
+		if( qst->required_tradeskill_value && plr->_GetSkillLineCurrent(qst->required_tradeskill) < qst->required_tradeskill_value )
 			return QMGR_QUEST_NOT_AVAILABLE;
 	}
 
 	// Check reputation
-	if(qst->required_rep_faction && qst->required_rep_value)
-		if(plr->GetStanding(qst->required_rep_faction[0]) < (int32)qst->required_rep_value[0])
+	// For first req rep, you need to have higher rep
+	if(qst->required_rep_faction[0] && qst->required_rep_value[0])
+	{
+		if( plr->GetStanding(qst->required_rep_faction[0]) < (int32)qst->required_rep_value[0] )
 			return QMGR_QUEST_NOT_AVAILABLE;
+	}
+	// And there you need to have less rep than its needed :P
+	if(qst->required_rep_faction[1] && qst->required_rep_value[1])
+	{
+		if(plr->GetStanding(qst->required_rep_faction[1]) > qst->required_rep_value[1])
+			return QMGR_QUEST_NOT_AVAILABLE;
+	}
 
-	if(plr->HasFinishedQuest(qst->id) && !sQuestMgr.IsQuestRepeatable(qst) && !sQuestMgr.IsQuestDaily(qst))
-		return QMGR_QUEST_NOT_AVAILABLE;
+	// check for title
+	if(qst->requiredtitleid)
+	{
+		if( !plr->HasTitle(static_cast< RankTitles >(qst->requiredtitleid)) )
+			return QMGR_QUEST_NOT_AVAILABLE;
+	}
 
 	// Check One of Quest Prequest
 	bool questscompleted = false;
@@ -102,21 +122,85 @@ uint32 QuestMgr::PlayerMeetsReqs(Player* plr, Quest* qst, bool skiplevelcheck)
 				}
 			}
 		}
-		if(!questscompleted)   // If none of listed quests is done, next part isn't available.
+
+		if( !questscompleted )   // If none of listed quests is done, next part isn't available.
 			return QMGR_QUEST_NOT_AVAILABLE;
 	}
 
-	for(uint32 i = 0; i < 4; ++i)
+	// check all required quests
+	if(!qst->required_quests_list.empty())
 	{
-		if(qst->required_quests[i] > 0 && !plr->HasFinishedQuest(qst->required_quests[i]))
+		set<uint32>::iterator iter = qst->required_quests_list.begin();
+		for(iter; iter != qst->required_quests_list.end(); ++iter)
 		{
-			return QMGR_QUEST_NOT_AVAILABLE;
+			if( plr->HasFinishedQuest((*iter)) )
+			{
+				return QMGR_QUEST_NOT_AVAILABLE;
+			}
 		}
 	}
 
-	// check quest level
-	if(static_cast< int32 >(plr->getLevel()) >= (qst->questlevel + 5) && (status != QMGR_QUEST_REPEATABLE))
-		return QMGR_QUEST_CHAT;
+	// required quests in q log
+	if(!qst->required_q_log_quest_list.empty())
+	{
+		set<uint32>::iterator iter = qst->required_q_log_quest_list.begin();
+		for(iter; iter != qst->required_q_log_quest_list.end(); ++iter)
+		{
+			if( plr->GetQuestLogForEntry((*iter)) == NULL )
+			{
+				return QMGR_QUEST_NOT_AVAILABLE;
+			}
+		}
+	}
+
+	// none of these quests finished or in quest log
+	if( !qst->none_of_quests_list.empty() )
+	{
+		set<uint32>::iterator iter = qst->none_of_quests_list.begin();
+		for(iter; iter != qst->none_of_quests_list.end(); ++iter)
+		{
+			if( plr->GetQuestLogForEntry((*iter)) )
+			{
+				return QMGR_QUEST_NOT_AVAILABLE;
+			}
+
+			if( plr->HasFinishedQuest((*iter)) )
+			{
+				return QMGR_QUEST_NOT_AVAILABLE;
+			}
+		}
+	}
+
+	// call proper status
+	// difference between repeatable/daily quests and normlal quests
+	// is that normal quests show grey exclamation mark, while daily and repatable doesnt show any mark
+	if( !sQuestMgr.IsQuestRepeatable(qst) && !sQuestMgr.IsQuestDaily(qst) )
+	{
+		// check for level as last check
+		if( plr->getLevel() < qst->min_level && !skiplevelcheck )
+			return QMGR_QUEST_AVAILABLELOW_LEVEL;
+		// low lvl quest
+		if( static_cast< int32 >(plr->getLevel()) >= (qst->questlevel + 5) )
+			status = QMGR_QUEST_CHAT;
+		else
+			status = QMGR_QUEST_AVAILABLE;	
+	}
+	else if( sQuestMgr.IsQuestRepeatable(qst) )
+	{
+		// we still need to check for level
+		if( plr->getLevel() < qst->min_level && !skiplevelcheck )
+			status = QMGR_QUEST_NOT_AVAILABLE;
+		else
+			status = QMGR_QUEST_REPEATABLE_FINISHED;
+	}
+	else if( sQuestMgr.IsQuestDaily(qst) )
+	{
+		// we still need to check for level
+		if( plr->getLevel() < qst->min_level && !skiplevelcheck )
+			status = QMGR_QUEST_NOT_AVAILABLE;
+		else
+			status = QMGR_QUEST_REPEATABLE;
+	}
 
 	return status;
 }
@@ -143,14 +227,7 @@ uint32 QuestMgr::CalcQuestStatus(Object* quest_giver, Player* plr, Quest* qst, u
 		{
 			if(!qle->CanBeFinished())
 			{
-				if( IsQuestRepeatable(qst) )
-				{
-					return QMGR_QUEST_REPEATABLE_FINISHED;
-				}
-				else
-				{
-					return QMGR_QUEST_NOT_FINISHED;
-				}
+				return QMGR_QUEST_NOT_FINISHED;
 			}
 			else
 			{
@@ -469,7 +546,7 @@ void QuestMgr::BuildQuestDetails(WorldPacket* data, Quest* qst, Object* qst_give
 	}
 }
 
-void QuestMgr::BuildRequestItems(WorldPacket* data, Quest* qst, Object* qst_giver, uint32 status, uint32 language)
+void QuestMgr::BuildRequestItems(WorldPacket* data, Quest* qst, Object* qst_giver, uint32 status, uint32 language, Player * plr)
 {
 	LocalizedQuest* lq = (language > 0) ? sLocalizationMgr.GetLocalizedQuest(qst->id, language) : NULL;
 	ItemPrototype* it;
@@ -491,7 +568,7 @@ void QuestMgr::BuildRequestItems(WorldPacket* data, Quest* qst, Object* qst_give
 
 	*data << uint32(0);
 
-	if(status == QMGR_QUEST_NOT_FINISHED)
+	if(status == QMGR_QUEST_NOT_FINISHED || (IsQuestRepeatable(qst) && !isRepeatableQuestFinished(plr, qst)) )
 		*data << qst->incompleteemote;
 	else
 		*data << qst->completeemote;
@@ -522,14 +599,13 @@ void QuestMgr::BuildRequestItems(WorldPacket* data, Quest* qst, Object* qst_give
 		}
 	}
 
-	// wtf is this?
-	if(status == QMGR_QUEST_NOT_FINISHED)
+	if(status == QMGR_QUEST_NOT_FINISHED || (IsQuestRepeatable(qst) && !isRepeatableQuestFinished(plr, qst)) )
 	{
 		*data << uint32(0); //incomplete button
 	}
 	else
 	{
-		*data << uint32(3);
+		*data << uint32(3); // complete button
 	}
 
 	*data << uint32(4);
@@ -539,20 +615,41 @@ void QuestMgr::BuildRequestItems(WorldPacket* data, Quest* qst, Object* qst_give
 
 void QuestMgr::BuildQuestComplete(Player* plr, Quest* qst)
 {
-	uint32 xp ;
+	uint32 xp = 0;
+	uint32 rewmoney = 0;
 	uint32 currtalentpoints = plr->GetCurrentTalentPoints();
 	uint32 rewardtalents = qst->rewardtalents;
 	uint32 playerlevel = plr->getLevel();
 
 	if(playerlevel >= plr->GetMaxLevel())
 	{
-		xp = 0;
+		if(qst->rew_money_at_max_level)
+			rewmoney += float2int32(qst->rew_money_at_max_level * sWorld.getRate(RATE_MONEY));
+
+		if(qst->reward_money != 0)
+			rewmoney += qst->reward_money > 0 ? float2int32(qst->reward_money * sWorld.getRate(RATE_MONEY)) : qst->reward_money;
 	}
 	else
 	{
-		xp = float2int32(GenerateQuestXP(plr, qst) * sWorld.getRate(RATE_QUESTXP));
-		plr->GiveXP(xp, 0, false);
+		// do not reward XP for repeatable quest if already rewarded
+		if( !(IsQuestRepeatable(qst) && plr->HasFinishedQuest(qst->id)) )
+		{
+			xp = float2int32(GenerateQuestXP(plr, qst) * sWorld.getRate(RATE_QUESTXP));
+			plr->GiveXP(xp, 0, false);
+		}
+
+		if(qst->reward_money != 0)
+			rewmoney += qst->reward_money > 0 ? float2int32(qst->reward_money * sWorld.getRate(RATE_MONEY)) : qst->reward_money;
 	}
+
+	GiveQuestRewardReputation(plr, qst);
+	plr->ModGold(rewmoney);
+
+	// make honor reward
+	uint32 bonushonor = uint32(ceil(qst->bonushonor*(-0.53177f + 0.59357f * exp((plr->getLevel() + 23.54042f) / 26.07859f))));
+
+	HonorHandler::AddHonorPointsToPlayer(plr, bonushonor);
+	plr->RecalculateHonor();
 
 	if( currtalentpoints <= ( playerlevel - 9 - rewardtalents ) )
 		plr->AddTalentPointsToAllSpec( rewardtalents );
@@ -565,13 +662,13 @@ void QuestMgr::BuildQuestComplete(Player* plr, Quest* qst)
 
 	data << uint32(qst->id);
 	data << uint32(xp);
-	data << uint32(GenerateRewardMoney(plr, qst));
-	data << uint32(qst->bonushonor * 10);
+	data << uint32(rewmoney);
+	data << uint32(bonushonor * 10);
 	data << uint32(rewardtalents);
 	data << uint32(qst->bonusarenapoints);
 	data << uint32(qst->count_reward_item);   //Reward item count
 
-	for(uint32 i = 0; i < 4; ++i)
+	for(uint32 i = 0; i < qst->count_reward_item; ++i)
 	{
 		if(qst->reward_item[i])
 		{
@@ -1001,10 +1098,41 @@ void QuestMgr::AreaExplored(Player* plr, uint32 QuestID)
 	}
 }
 
-void QuestMgr::GiveQuestRewardReputation(Player* plr, Quest* qst, Object* qst_giver)
+void QuestMgr::GiveQuestRewardReputation(Player* plr, Quest* qst)
 {
+	// quest reputation reward/loss
+    for(int i = 0; i < 5; ++i)
+    {
+		if (!qst->reward_repfaction[i])
+            continue;
+
+		uint32 row = ((qst->reward_repvalue[i] < 0) ? 1 : 0) + 1;
+		uint32 field = abs(qst->reward_repvalue[i]);
+
+		if(QuestFactionRewardEntry * pRow = dbcQuestFactionReward.LookupEntry(row))
+		{
+			int32 repPoints = pRow->RewValue[field];
+			if (!repPoints)
+				continue;
+
+			repPoints = float2int32( repPoints * sWorld.getRate( RATE_QUESTREPUTATION ) );
+
+			// TODO: some quests has limit neutral which means column is 0, option could be set it to 1 :P
+			if(qst->reward_replimit[i])
+			{
+				if(plr->GetStanding(qst->reward_repfaction[i]) >= qst->reward_replimit[i])
+					continue;
+
+				if((plr->GetStanding(qst->reward_repfaction[i])+repPoints) >= qst->reward_replimit[i])
+					repPoints = (plr->GetStanding(qst->reward_repfaction[i])+repPoints) - qst->reward_replimit[i];
+			}
+
+			plr->ModStanding(qst->reward_repfaction[i], repPoints);
+		}
+	}
+
 	// Reputation reward
-	for(int z = 0; z < 6; z++)
+/*	for(int z = 0; z < 6; z++)
 	{
 		uint32 fact = 19;   // default to 19 if no factiondbc
 		int32 amt  = float2int32(GenerateQuestXP(plr, qst) * 0.1f);      // guess
@@ -1033,7 +1161,7 @@ void QuestMgr::GiveQuestRewardReputation(Player* plr, Quest* qst, Object* qst_gi
 
 		amt = float2int32(amt * sWorld.getRate(RATE_QUESTREPUTATION));     // reputation rewards
 		plr->ModStanding(fact, amt);
-	}
+	}*/
 }
 
 void QuestMgr::OnQuestAccepted(Player* plr, Quest* qst, Object* qst_giver)
@@ -1089,10 +1217,8 @@ void QuestMgr::OnQuestFinished(Player* plr, Quest* qst, Object* qst_giver, uint3
 	}
 
 	//details: hmm as i can remember, repeatable quests give faction rep still after first completion
-	if(IsQuestRepeatable(qst) || IsQuestDaily(qst))
+	if(IsQuestRepeatable(qst))
 	{
-		// Reputation reward
-		GiveQuestRewardReputation(plr, qst, qst_giver);
 		// Static Item reward
 		for(uint32 i = 0; i < 4; ++i)
 		{
@@ -1198,18 +1324,12 @@ void QuestMgr::OnQuestFinished(Player* plr, Quest* qst, Object* qst_giver, uint3
 			}
 		}
 
-		plr->ModGold(GenerateRewardMoney(plr, qst));
-
 		// if daily then append to finished dailies
 		if(qst->HasFlag(QUEST_FLAG_DAILY))
 			plr->PushToFinishedDailies(qst->id);
 	}
 	else
 	{
-		plr->ModGold(GenerateRewardMoney(plr, qst));
-
-		// Reputation reward
-		GiveQuestRewardReputation(plr, qst, qst_giver);
 		// Static Item reward
 		for(uint32 i = 0; i < 4; ++i)
 		{
@@ -1809,16 +1929,16 @@ bool QuestMgr::OnActivateQuestGiver(Object* qst_giver, Player* plr)
 			if((*itr)->qst->HasFlag(QUEST_FLAG_AUTO_ACCEPT))
 				plr->AcceptQuest(qst_giver->GetGUID(), (*itr)->qst->id);
 		}
-		else if(status == QMGR_QUEST_FINISHED)
+		else if(status == QMGR_QUEST_FINISHED )
 		{
 			sQuestMgr.BuildOfferReward(&data, (*itr)->qst, qst_giver, 1, plr->GetSession()->language, plr);
 			plr->GetSession()->SendPacket(&data);
 			//ss
 			LOG_DEBUG("WORLD: Sent SMSG_QUESTGIVER_OFFER_REWARD.");
 		}
-		else if(status == QMGR_QUEST_NOT_FINISHED)
+		else if(status == QMGR_QUEST_NOT_FINISHED || (status == QMGR_QUEST_REPEATABLE_FINISHED))
 		{
-			sQuestMgr.BuildRequestItems(&data, (*itr)->qst, qst_giver, status, plr->GetSession()->language);
+			sQuestMgr.BuildRequestItems(&data, (*itr)->qst, qst_giver, status, plr->GetSession()->language, plr);
 			plr->GetSession()->SendPacket(&data);
 			LOG_DEBUG("WORLD: Sent SMSG_QUESTGIVER_REQUEST_ITEMS.");
 		}
