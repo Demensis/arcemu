@@ -48,13 +48,17 @@ uint32 QuestMgr::PlayerMeetsReqs(Player* plr, Quest* qst, bool skiplevelcheck)
 	std::list<uint32>::iterator itr;
 	uint32 status;
 
-	// QUEST SYSTEM TO-DO
-
 	if( qst->event_id != 0 && !sGameEventMgr.IsEventActive( qst->event_id ) )
 		return QMGR_QUEST_NOT_AVAILABLE;
 
 	if(!sQuestMgr.IsQuestRepeatable(qst) && !sQuestMgr.IsQuestDaily(qst))
 		status = QMGR_QUEST_AVAILABLE;
+	else
+	{
+		status = QMGR_QUEST_REPEATABLE;
+		if(qst->is_repeatable == arcemu_QUEST_REPEATABLE_DAILY && plr->HasFinishedDaily(qst->id))
+			return QMGR_QUEST_NOT_AVAILABLE;
+	}
 
 	if(plr->getLevel() < qst->min_level && !skiplevelcheck)
 		return QMGR_QUEST_AVAILABLELOW_LEVEL;
@@ -79,7 +83,7 @@ uint32 QuestMgr::PlayerMeetsReqs(Player* plr, Quest* qst, bool skiplevelcheck)
 
 	// Check reputation
 	if(qst->required_rep_faction && qst->required_rep_value)
-		if(plr->GetStanding(qst->required_rep_faction[0]) < (int32)qst->required_rep_value[0])
+		if(plr->GetStanding(qst->required_rep_faction) < (int32)qst->required_rep_value)
 			return QMGR_QUEST_NOT_AVAILABLE;
 
 	if(plr->HasFinishedQuest(qst->id) && !sQuestMgr.IsQuestRepeatable(qst) && !sQuestMgr.IsQuestDaily(qst))
@@ -143,9 +147,9 @@ uint32 QuestMgr::CalcQuestStatus(Object* quest_giver, Player* plr, Quest* qst, u
 		{
 			if(!qle->CanBeFinished())
 			{
-				if( IsQuestRepeatable(qst) )
+				if(qst->is_repeatable)
 				{
-					return QMGR_QUEST_REPEATABLE_FINISHED;
+					return QMGR_QUEST_REPEATABLE;
 				}
 				else
 				{
@@ -1183,7 +1187,7 @@ void QuestMgr::OnQuestFinished(Player* plr, Quest* qst, Object* qst_giver, uint3
 
 		// Remove srcitem
 		if(qst->srcitem && qst->srcitem != qst->receive_items[0])
-			plr->GetItemInterface()->RemoveItemAmt(qst->srcitem, 1);
+			plr->GetItemInterface()->RemoveItemAmt(qst->srcitem, qst->srcitemcount ? qst->srcitemcount : 1);
 
 		// cast Effect Spell
 		if(qst->effect_on_player)
@@ -1201,7 +1205,7 @@ void QuestMgr::OnQuestFinished(Player* plr, Quest* qst, Object* qst_giver, uint3
 		plr->ModGold(GenerateRewardMoney(plr, qst));
 
 		// if daily then append to finished dailies
-		if(qst->HasFlag(QUEST_FLAG_DAILY))
+		if(qst->is_repeatable == arcemu_QUEST_REPEATABLE_DAILY)
 			plr->PushToFinishedDailies(qst->id);
 	}
 	else
@@ -1299,7 +1303,7 @@ void QuestMgr::OnQuestFinished(Player* plr, Quest* qst, Object* qst_giver, uint3
 
 		// Remove srcitem
 		if(qst->srcitem && qst->srcitem != qst->receive_items[0])
-			plr->GetItemInterface()->RemoveItemAmt(qst->srcitem, 1);
+			plr->GetItemInterface()->RemoveItemAmt(qst->srcitem, qst->srcitemcount ? qst->srcitemcount : 1);
 
 		// cast learning spell
 		if(qst->reward_spell && !qst->effect_on_player) // qst->reward_spell is the spell the quest finisher teaches you, OR the icon of the spell if effect_on_player is not 0
@@ -1356,20 +1360,18 @@ void QuestMgr::OnQuestFinished(Player* plr, Quest* qst, Object* qst_giver, uint3
 
 #ifdef ENABLE_ACHIEVEMENTS
 		plr->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUEST_COUNT, 1, 0, 0);
-		if(qst->reward_money > 0)
+		if(qst->reward_money)
 			plr->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_QUEST_REWARD_GOLD, qst->reward_money, 0, 0);
-		if(qst->zone_or_sort > 0)
-			plr->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUESTS_IN_ZONE, qst->zone_or_sort, 0, 0);
+		plr->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUESTS_IN_ZONE, qst->zone_id, 0, 0);
 		plr->GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_COMPLETE_QUEST, qst->id, 0, 0);
 #endif
 		// Remove quests that are listed to be removed on quest complete.
-		// QUEST SYSTEM TO-DO
-/*		set<uint32>::iterator iter = qst->remove_quest_list.begin();
+		set<uint32>::iterator iter = qst->remove_quest_list.begin();
 		for(; iter != qst->remove_quest_list.end(); ++iter)
 		{
 			if(!plr->HasFinishedQuest((*iter)))
 				plr->AddToFinishedQuests((*iter));
-		}*/
+		}
 	}
 
 	if( qst->MailTemplateId != 0 )
@@ -1497,7 +1499,7 @@ void QuestMgr::_RemoveChar(char* c, std::string* str)
 
 uint32 QuestMgr::GenerateQuestXP(Player* plr, Quest* qst)
 {
-	if(IsQuestRepeatable(qst))
+	if(qst->is_repeatable != 0)
 		return 0;
 
 	// Leaving this for compatibility reason for the old system + custom quests ^^
@@ -1806,7 +1808,7 @@ bool QuestMgr::OnActivateQuestGiver(Object* qst_giver, Player* plr)
 			plr->GetSession()->SendPacket(&data);
 			LOG_DEBUG("WORLD: Sent SMSG_QUESTGIVER_QUEST_DETAILS.");
 
-			if((*itr)->qst->HasFlag(QUEST_FLAG_AUTO_ACCEPT))
+			if((*itr)->qst->HasFlag(QUEST_FLAGS_AUTO_ACCEPT))
 				plr->AcceptQuest(qst_giver->GetGUID(), (*itr)->qst->id);
 		}
 		else if(status == QMGR_QUEST_FINISHED)
@@ -1963,6 +1965,8 @@ void QuestMgr::LoadExtraQuestStuff()
 		qst->required_mobtype[2] = 0;
 		qst->required_mobtype[3] = 0;
 
+		qst->count_requiredquests = 0;
+
 		if(it->Get()->x_or_y_quest_string)
 		{
 			it->Get()->quest_list.clear();
@@ -1976,42 +1980,15 @@ void QuestMgr::LoadExtraQuestStuff()
 			}
 		}
 
-		if(it->Get()->none_of_quests)
+		if(it->Get()->remove_quests)
 		{
-			it->Get()->none_of_quests_list.clear();
-			string quests = string(it->Get()->none_of_quests);
+			string quests = string(it->Get()->remove_quests);
 			vector<string> qsts = StrSplit(quests, " ");
 			for(vector<string>::iterator iter = qsts.begin(); iter != qsts.end(); ++iter)
 			{
 				uint32 id = atol((*iter).c_str());
 				if(id)
-					it->Get()->none_of_quests_list.insert(id);
-			}
-		}
-
-		if(it->Get()->required_quests)
-		{
-			it->Get()->required_quests_list.clear();
-			string quests = string(it->Get()->required_quests);
-			vector<string> qsts = StrSplit(quests, " ");
-			for(vector<string>::iterator iter = qsts.begin(); iter != qsts.end(); ++iter)
-			{
-				uint32 id = atol((*iter).c_str());
-				if(id)
-					it->Get()->required_quests_list.insert( id );
-			}
-		}
-
-		if(it->Get()->required_quests_in_q_log)
-		{
-			it->Get()->required_q_log_quest_list.clear();
-			string quests = string(it->Get()->required_quests_in_q_log);
-			vector<string> qsts = StrSplit(quests, " ");
-			for(vector<string>::iterator iter = qsts.begin(); iter != qsts.end(); ++iter)
-			{
-				uint32 id = atol((*iter).c_str());
-				if(id)
-					it->Get()->required_q_log_quest_list.insert( id );
+					it->Get()->remove_quest_list.insert(id);
 			}
 		}
 
@@ -2057,17 +2034,8 @@ void QuestMgr::LoadExtraQuestStuff()
 			if(qst->receive_items[i])
 				qst->count_receiveitems++;
 
-			if(qst->ReqSourceId[i])
-			{
-				if(qst->ReqSourceCount[i] == 0)
-				{
-					sLog.outError("Tried to add association to item %d with count 0 (quest %d)", qst->ReqSourceId[i], qst->id);
-				}
-				else
-				{
-					AddItemQuestAssociation( qst->ReqSourceId[i], qst, uint8(qst->ReqSourceCount[i]) );
-				}
-			}
+			if(qst->required_quests[i])
+				qst->count_requiredquests++;
 		}
 
 		for( int i = 0; i < MAX_REQUIRED_QUEST_ITEM; i++ )
@@ -2078,9 +2046,6 @@ void QuestMgr::LoadExtraQuestStuff()
 		{
 			if(qst->reward_choiceitem[i])
 				qst->count_reward_choiceitem++;
-
-			if(qst->required_item[i])
-				qst->count_required_item++;
 		}
 
 		qst->pQuestScript = NULL;
@@ -2091,7 +2056,7 @@ void QuestMgr::LoadExtraQuestStuff()
 
 	it->Destruct();
 
-	// load creature starters and finishers
+	// load creature starters
 	uint32 creature, quest;
 
 	QueryResult* pResult = WorldDatabase.Query("SELECT * FROM creature_quest_starter");
@@ -2138,7 +2103,7 @@ void QuestMgr::LoadExtraQuestStuff()
 			}
 			else
 			{
-				_AddQuest<Creature>(creature, qst, 2);  // 2 = finisher
+				_AddQuest<Creature>(creature, qst, 2);  // 1 = starter
 			}
 		}
 		while(pResult->NextRow());
@@ -2195,6 +2160,36 @@ void QuestMgr::LoadExtraQuestStuff()
 		delete pResult;
 	}
 	objmgr.ProcessGameobjectQuests();
+
+	//load item quest associations
+	uint32 item;
+	uint8 item_count;
+
+	pResult = WorldDatabase.Query("SELECT * FROM item_quest_association");
+	pos = 0;
+	if(pResult != NULL)
+	{
+		total = pResult->GetRowCount();
+		do
+		{
+			Field* data = pResult->Fetch();
+			item = data[0].GetUInt32();
+			quest = data[1].GetUInt32();
+			item_count = data[2].GetUInt8();
+
+			qst = QuestStorage.LookupEntry(quest);
+			if(!qst)
+			{
+				Log.Error("ObjectMgr", "Tried to add association to item %d for non-existent quest %d.", item, quest);
+			}
+			else
+			{
+				AddItemQuestAssociation(item, qst, item_count);
+			}
+		}
+		while(pResult->NextRow());
+		delete pResult;
+	}
 
 	m_QuestPOIMap.clear();
 

@@ -137,8 +137,8 @@ class SERVER_DECL QuestMgr :  public Singleton < QuestMgr >
 		QuestAssociationList* GetQuestAssociationListForItemId(uint32 itemId);
 		uint32 GetGameObjectLootQuest(uint32 GO_Entry);
 		void SetGameObjectLootQuest(uint32 GO_Entry, uint32 Item_Entry);
-		ARCEMU_INLINE bool IsQuestRepeatable(Quest* qst) { return (qst->HasSpecialFlag(QUEST_SPECIAL_FLAG_REPEATABLE) ? true : false); }
-		ARCEMU_INLINE bool IsQuestDaily(Quest* qst) { return (qst->HasFlag(QUEST_FLAG_DAILY) ? true : false); }
+		ARCEMU_INLINE bool IsQuestRepeatable(Quest* qst) { return (qst->is_repeatable == 1 ? true : false); }
+		ARCEMU_INLINE bool IsQuestDaily(Quest* qst) { return (qst->is_repeatable == 2 ? true : false); }
 
 		bool CanStoreReward(Player* plyr, Quest* qst, uint32 reward_slot);
 

@@ -208,7 +208,7 @@ void WorldSession::HandleQuestGiverQueryQuestOpcode(WorldPacket & recv_data)
 		SendPacket(&data);
 		LOG_DEBUG("WORLD: Sent SMSG_QUESTGIVER_QUEST_DETAILS.");
 
-		if(qst->HasFlag(QUEST_FLAG_AUTO_ACCEPT))
+		if(qst->HasFlag(QUEST_FLAGS_AUTO_ACCEPT))
 			_player->AcceptQuest(qst_giver->GetGUID(), qst->id);
 	}
 
@@ -273,8 +273,7 @@ void WorldSession::HandleQuestlogRemoveQuestOpcode(WorldPacket & recvPacket)
 			GetPlayer()->GetItemInterface()->RemoveItemAmt(qPtr->receive_items[i], 1);
 	}
 	if(qPtr->srcitem && qPtr->srcitem != qPtr->receive_items[0])
-		GetPlayer()->GetItemInterface()->RemoveItemAmt(qPtr->srcitem, 1);
-
+		GetPlayer()->GetItemInterface()->RemoveItemAmt(qPtr->srcitem, qPtr->srcitemcount ? qPtr->srcitemcount : 1);
 	//remove all quest items (but not trade goods) collected and required only by this quest
 	for(uint32 i = 0; i < MAX_REQUIRED_QUEST_ITEM; ++i)
 	{
@@ -558,7 +557,7 @@ void WorldSession::HandleQuestgiverChooseRewardOpcode(WorldPacket & recvPacket)
 	//   qst_giver->SendChatMessage(CHAT_MSG_MONSTER_SAY,LANG_UNIVERSAL,qst->GetQuestEndMessage().c_str());
 	QuestLogEntry* qle = _player->GetQuestLogForEntry(quest_id);
 
-	if(!qle && !sQuestMgr.IsQuestRepeatable(qst))
+	if(!qle && !qst->is_repeatable)
 	{
 		LOG_DEBUG("WORLD: QuestLogEntry not found.");
 		return;

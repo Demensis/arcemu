@@ -13233,7 +13233,7 @@ void Player::AcceptQuest(uint64 guid, uint32 quest_id)
 		Item* item = objmgr.CreateItem(qst->srcitem, this);
 		if(item)
 		{
-			item->SetStackCount(1);
+			item->SetStackCount(qst->srcitemcount ? qst->srcitemcount : 1);
 			if(!m_ItemInterface->AddItemToFreeSlot(item))
 				item->DeleteMe();
 		}
