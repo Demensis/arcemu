@@ -33,12 +33,6 @@ struct WorldMapOverlay
 // any of the four above indexes is enough to uncover the fragment
 };
 
-struct QuestFactionRewardEntry
-{
-	uint32 id;
-	int32 RewValue[10];
-};
-
 #ifdef ENABLE_ACHIEVEMENTS
 struct AchievementEntry
 {
@@ -2035,7 +2029,6 @@ extern SERVER_DECL DBCStorage< NameGenEntry > dbcNameGen;
 extern SERVER_DECL DBCStorage< LFGDungeonEntry > dbcLFGDungeon;
 extern SERVER_DECL DBCStorage< VehicleEntry > dbcVehicle;
 extern SERVER_DECL DBCStorage< VehicleSeatEntry > dbcVehicleSeat;
-extern SERVER_DECL DBCStorage<QuestFactionRewardEntry> dbcQuestFactionReward;
 
 bool LoadDBCs();
 
