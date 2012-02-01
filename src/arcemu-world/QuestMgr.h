@@ -118,7 +118,7 @@ class SERVER_DECL QuestMgr :  public Singleton < QuestMgr >
 		void OnQuestAccepted(Player* plr, Quest* qst, Object* qst_giver);
 		void OnQuestFinished(Player* plr, Quest* qst, Object* qst_giver, uint32 reward_slot);
 
-		void GiveQuestRewardReputation(Player* plr, Quest* qst);
+		void GiveQuestRewardReputation(Player* plr, Quest* qst, Object* qst_giver);
 
 		uint32 GenerateQuestXP(Player* plr, Quest* qst);
 		uint32 GenerateRewardMoney(Player* plr, Quest* qst);

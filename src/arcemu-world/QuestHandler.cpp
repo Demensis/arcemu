@@ -212,7 +212,7 @@ void WorldSession::HandleQuestGiverQueryQuestOpcode(WorldPacket & recv_data)
 			_player->AcceptQuest(qst_giver->GetGUID(), qst->id);
 	}
 
-	else if(status == QMGR_QUEST_NOT_FINISHED || status == QMGR_QUEST_REPEATABLE_FINISHED /*|| status == QMGR_QUEST_FINISHED*/)
+	else if(status == QMGR_QUEST_NOT_FINISHED || status == QMGR_QUEST_FINISHED)
 	{
 		sQuestMgr.BuildRequestItems(&data, qst, qst_giver, status, language, _player);
 		SendPacket(&data);
@@ -475,7 +475,7 @@ void WorldSession::HandleQuestgiverCompleteQuestOpcode(WorldPacket & recvPacket)
 		return;
 	}
 
-	if(status == QMGR_QUEST_NOT_FINISHED || (status == QMGR_QUEST_REPEATABLE_FINISHED) )
+	if(status == QMGR_QUEST_NOT_FINISHED || status == QMGR_QUEST_REPEATABLE)
 	{
 		WorldPacket data;
 		sQuestMgr.BuildRequestItems(&data, qst, qst_giver, status, language, _player);
