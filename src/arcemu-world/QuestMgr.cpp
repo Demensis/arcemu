@@ -40,10 +40,6 @@ bool QuestMgr::isRepeatableQuestFinished(Player* plr, Quest* qst)
 		}
 	}
 
-	//Check for Gold
-	if ( qst->reward_money < 0 && int32(plr->GetGold()) < qst->reward_money*(-1) )
-		return false;
-
 	return true;
 }
 
@@ -546,7 +542,7 @@ void QuestMgr::BuildQuestDetails(WorldPacket* data, Quest* qst, Object* qst_give
 	}
 }
 
-void QuestMgr::BuildRequestItems(WorldPacket* data, Quest* qst, Object* qst_giver, uint32 status, uint32 language, Player * plr)
+void QuestMgr::BuildRequestItems(WorldPacket* data, Quest* qst, Object* qst_giver, uint32 status, uint32 language)
 {
 	LocalizedQuest* lq = (language > 0) ? sLocalizationMgr.GetLocalizedQuest(qst->id, language) : NULL;
 	ItemPrototype* it;
@@ -568,7 +564,7 @@ void QuestMgr::BuildRequestItems(WorldPacket* data, Quest* qst, Object* qst_give
 
 	*data << uint32(0);
 
-	if(status == QMGR_QUEST_NOT_FINISHED || (IsQuestRepeatable(qst) && !isRepeatableQuestFinished(plr, qst)) )
+	if(status == QMGR_QUEST_NOT_FINISHED)
 		*data << qst->incompleteemote;
 	else
 		*data << qst->completeemote;
@@ -599,13 +595,14 @@ void QuestMgr::BuildRequestItems(WorldPacket* data, Quest* qst, Object* qst_give
 		}
 	}
 
-	if(status == QMGR_QUEST_NOT_FINISHED || (IsQuestRepeatable(qst) && !isRepeatableQuestFinished(plr, qst)) )
+	// wtf is this?
+	if(status == QMGR_QUEST_NOT_FINISHED)
 	{
 		*data << uint32(0); //incomplete button
 	}
 	else
 	{
-		*data << uint32(3); // complete button
+		*data << uint32(3);
 	}
 
 	*data << uint32(4);
@@ -1885,16 +1882,16 @@ bool QuestMgr::OnActivateQuestGiver(Object* qst_giver, Player* plr)
 			if((*itr)->qst->HasFlag(QUEST_FLAG_AUTO_ACCEPT))
 				plr->AcceptQuest(qst_giver->GetGUID(), (*itr)->qst->id);
 		}
-		else if(status == QMGR_QUEST_FINISHED )
+		else if(status == QMGR_QUEST_FINISHED)
 		{
 			sQuestMgr.BuildOfferReward(&data, (*itr)->qst, qst_giver, 1, plr->GetSession()->language, plr);
 			plr->GetSession()->SendPacket(&data);
 			//ss
 			LOG_DEBUG("WORLD: Sent SMSG_QUESTGIVER_OFFER_REWARD.");
 		}
-		else if(status == QMGR_QUEST_NOT_FINISHED || (status == QMGR_QUEST_REPEATABLE_FINISHED))
+		else if(status == QMGR_QUEST_NOT_FINISHED)
 		{
-			sQuestMgr.BuildRequestItems(&data, (*itr)->qst, qst_giver, status, plr->GetSession()->language, plr);
+			sQuestMgr.BuildRequestItems(&data, (*itr)->qst, qst_giver, status, plr->GetSession()->language);
 			plr->GetSession()->SendPacket(&data);
 			LOG_DEBUG("WORLD: Sent SMSG_QUESTGIVER_REQUEST_ITEMS.");
 		}

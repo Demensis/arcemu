@@ -93,7 +93,7 @@ class SERVER_DECL QuestMgr :  public Singleton < QuestMgr >
 		//Packet Forging...
 		void BuildOfferReward(WorldPacket* data, Quest* qst, Object* qst_giver, uint32 menutype, uint32 language, Player* plr);
 		void BuildQuestDetails(WorldPacket* data, Quest* qst, Object* qst_giver, uint32 menutype, uint32 language, Player* plr);
-		void BuildRequestItems(WorldPacket* data, Quest* qst, Object* qst_giver, uint32 status, uint32 language, Player * plr);
+		void BuildRequestItems(WorldPacket* data, Quest* qst, Object* qst_giver, uint32 status, uint32 language);
 		void BuildQuestComplete(Player*, Quest* qst);
 		void BuildQuestList(WorldPacket* data, Object* qst_giver, Player* plr, uint32 language);
 		bool OnActivateQuestGiver(Object* qst_giver, Player* plr);
