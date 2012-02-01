@@ -32,7 +32,7 @@ enum QUEST_STATUS
     QMGR_QUEST_REPEATABLE_LOWLEVEL				= 0x04,
 	QMGR_QUEST_NOT_FINISHED						= 0x05,	// Quest isn't finished yet.		| "Gray Question ? Mark"
 	QMGR_QUEST_REPEATABLE_FINISHED				= 0x06,	// Quest repeatable					| "Blue Question ? Mark"
-	QMGR_QUEST_REPEATABLE						= 0x07,	// Quest daily						| "Blue exclamation ! Mark" 
+	QMGR_QUEST_REPEATABLE						= 0x07,	// Quest daily and weekly			| "Blue exclamation ! Mark" 
 	QMGR_QUEST_AVAILABLE						= 0x08,	// Quest available, and your level is enough	| "Yellow exclamation ! Mark"
 	QMGR_QUEST_FINISHED2						= 0x09,	// Quest has been finished.			| "Yellow Question  ? Mark" (has no minimap icon) seems that these are used for method = 0 but not sure
 	QMGR_QUEST_FINISHED							= 0x0A,	// Quest has been finished.			| "Yellow Question  ? Mark" (has minimap icon)
