@@ -227,6 +227,7 @@ struct Quest
 	uint32 incompleteemote;
 	uint32 iscompletedbyspelleffect;
 	uint32 RewXPId;
+	uint32 event_id;
 
 	/* this marks the end of the fields loaded from db - don't remove the comment please */
 

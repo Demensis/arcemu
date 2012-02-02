@@ -106,6 +106,8 @@ void WorldSession::HandleQuestgiverHelloOpcode(WorldPacket & recv_data)
 
 	//qst_giver->Emote(EMOTE_ONESHOT_TALK); // this doesn't work
 	sQuestMgr.OnActivateQuestGiver(qst_giver, GetPlayer());
+
+	CALL_SCRIPT_EVENT(qst_giver, OnQuestgiverHello)(GetPlayer());
 }
 
 void WorldSession::HandleQuestGiverQueryQuestOpcode(WorldPacket & recv_data)

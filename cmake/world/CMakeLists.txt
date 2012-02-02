@@ -162,7 +162,8 @@ SET(sources
 	Rogue.cpp
 	Shaman.cpp
 	Warlock.cpp
-	Warrior.cpp )
+	Warrior.cpp
+	GameEventManager.cpp )
 
 SET( headers
 	AchievementMgr.h
@@ -284,6 +285,7 @@ SET( headers
 	WorldStatesHandler.h
 	WorldStates.h
 	WUtil.h
+	GameEventManager.h
 )
 	
 
