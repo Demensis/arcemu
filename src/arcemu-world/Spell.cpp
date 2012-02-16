@@ -193,7 +193,16 @@ Spell::Spell(Object* Caster, SpellEntry* info, bool triggered, Aura* aur)
 	bRadSet[1] = 0;
 	bRadSet[2] = 0;
 
-	m_spellInfo = info;
+	if( ( info->SpellDifficultyID != 0 ) && ( Caster->GetTypeId() != TYPEID_PLAYER ) && ( Caster->GetMapMgr() != NULL ) && ( Caster->GetMapMgr()->pInstance != NULL ) )
+	{
+		SpellEntry* SpellDiffEntry = sSpellFactoryMgr.GetSpellEntryByDifficulty(info->SpellDifficultyID, Caster->GetMapMgr()->iInstanceMode);
+		if( SpellDiffEntry != NULL )
+			m_spellInfo = SpellDiffEntry;
+		else
+			m_spellInfo = info;
+	}else
+		m_spellInfo = info;
+
 	m_spellInfo_override = NULL;
 	m_caster = Caster;
 	duelSpell = false;
@@ -711,6 +720,15 @@ uint8 Spell::DidHit(uint32 effindex, Unit* target)
 	/************************************************************************/
 	if(u_victim->IsCreature() && u_victim->GetAIInterface()->getAIState() == STATE_EVADE)
 		return SPELL_DID_HIT_EVADE;
+
+	/************************************************************************/ 
+	/* Check if the player target is able to deflect spells					*/ 
+	/* Currently (3.3.5a) there is only spell doing that: Deterrence		*/ 
+	/************************************************************************/ 
+	if( p_victim && p_victim->HasAuraWithName(SPELL_AURA_DEFLECT_SPELLS) )
+	{
+		return SPELL_DID_HIT_DEFLECT;
+	}
 
 	/************************************************************************/
 	/* Check if the target is immune to this spell school                   */
@@ -4748,7 +4766,7 @@ int32 Spell::DoCalculateEffect(uint32 i, Unit* target, int32 value)
 		case SPELL_HASH_GOUGE:
 			{
 				if(u_caster != NULL && i == 0)
-					value += (uint32)ceilf(u_caster->GetAP() * 0.21f);
+						value += (uint32)ceilf(u_caster->GetAP() * 0.21f);
 				break;
 			}
 		case SPELL_HASH_FAN_OF_KNIVES:  // rogue - fan of knives
@@ -5582,8 +5600,6 @@ uint32 GetDiminishingGroup(uint32 NameHash)
 		case SPELL_HASH_STARFIRE_STUN:
 		case SPELL_HASH_STONECLAW_STUN:
 		case SPELL_HASH_STUN:					// Generic ones
-		case SPELL_HASH_BLACKOUT:
-		case SPELL_HASH_MACE_SPECIALIZATION:		// Mace Specialization
 			{
 				grp = DIMINISHING_GROUP_STUN_PROC;
 				pve = true;

@@ -562,14 +562,20 @@ AI_Spell* Pet::CreateAISpell(SpellEntry* info)
 	sp->spell = info;
 	sp->cooldown = objmgr.GetPetSpellCooldown(info->Id);
 	if(sp->cooldown == 0)
-		sp->cooldown = info->StartRecoveryTime; //avoid spell spamming
+		sp->cooldown = info->RecoveryTime; //still 0 ?
 	if(sp->cooldown == 0)
-		sp->cooldown = info->StartRecoveryCategory; //still 0 ?
+		sp->cooldown = info->CategoryRecoveryTime;
+	if(sp->cooldown == 0)
+		sp->cooldown = info->StartRecoveryTime; //avoid spell spamming
 	if(sp->cooldown == 0)
 		sp->cooldown = PET_SPELL_SPAM_COOLDOWN; //omg, avoid spamming at least
 	sp->cooldowntime = 0;
 
-	if(/* info->Effect[0] == SPELL_EFFECT_APPLY_AURA || */ info->Effect[0] == SPELL_EFFECT_APPLY_GROUP_AREA_AURA || info->Effect[0] == SPELL_EFFECT_APPLY_RAID_AREA_AURA)
+	if(/* info->Effect[0] == SPELL_EFFECT_APPLY_AURA || */ 
+		info->Effect[0] == SPELL_EFFECT_APPLY_GROUP_AREA_AURA 
+		|| info->Effect[0] == SPELL_EFFECT_APPLY_RAID_AREA_AURA
+		|| info->EffectImplicitTargetA[0] == 27 //TARGET_MASTER
+		|| info->EffectImplicitTargetA[0] == 57) //TARGET_SINGLE_FRIEND_2
 		sp->spellType = STYPE_BUFF;
 	else
 		sp->spellType = STYPE_DAMAGE;
@@ -757,8 +763,9 @@ void Pet::InitializeMe(bool first)
 		// Adds parent +frost spell damage
 		if(GetEntry() == WATER_ELEMENTAL || GetEntry() == WATER_ELEMENTAL_NEW)
 		{
-			float parentfrost = (float)m_Owner->GetDamageDoneMod(SCHOOL_FROST);
-			parentfrost *= 0.40f;
+			// According to WoWWiki and ElitistJerks, Water Elemental should inherit 33% of owner's frost spell power.
+			// And don't freak out about Waterbolt damage, it is supposed to do 601-673 base damage.
+			float parentfrost = static_cast< float >(m_Owner->GetDamageDoneMod(SCHOOL_FROST) * 0.33f);
 			ModDamageDone[SCHOOL_FROST] = (uint32)parentfrost;
 		}
 		else if(GetEntry() == PET_IMP)
@@ -1586,14 +1593,19 @@ void Pet::ApplyStatsForLevel()
 
 	// Apply common stuff
 	// Apply scale for this family.
-	if(myFamily != NULL)
+	// Hunter pets' size scaling is affected by level of the pet.
+	// http://www.wowwiki.com/Hunter_pet#Size
+	if(myFamily != NULL && myFamily->minsize > 0.0f)
 	{
 		float pet_level = float(getLevel());
 		float level_diff = float(myFamily->maxlevel - myFamily->minlevel);
 		float scale_diff = float(myFamily->maxsize - myFamily->minsize);
 		float factor = scale_diff / level_diff;
 		float scale = factor * pet_level + myFamily->minsize;
-		SetScale(scale);
+		if(myFamily->ID == 23) // Imps have strange values set into CreatureFamily.dbc, 
+			SetScale(1.0f);    // they always will be set to be 0.5f. But that's not right.
+		else
+			SetScale(scale);
 	}
 
 	// Apply health fields.

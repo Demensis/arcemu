@@ -1588,9 +1588,6 @@ void Player::GiveXP(uint32 xp, const uint64 & guid, bool allowbonus)
 	// Set the update bit
 	SetXp(newxp);
 
-	HandleProc(PROC_ON_GAIN_EXPIERIENCE, this, NULL);
-	m_procCounter = 0;
-
 }
 
 void Player::smsg_InitialSpells()
@@ -5669,7 +5666,7 @@ bool Player::CanSee(Object* obj) // * Invisibility & Stealth Detection - Partha 
 						if(getLevel() < PLAYER_LEVEL_CAP)
 							detectRange = 5.0f + getLevel() + 0.2f * (float)(GetStealthDetectBonus() - pObj->GetStealthLevel());
 						else
-							detectRange = 75.0f + 0.2f * (float)(GetStealthDetectBonus() - pObj->GetStealthLevel());
+							detectRange = 85.0f + 0.2f * (float)(GetStealthDetectBonus() - pObj->GetStealthLevel());
 						// Hehe... stealth skill is increased by 5 each level and detection skill is increased by 5 each level too.
 						// This way, a level 70 should easily be able to detect a level 4 rogue (level 4 because that's when you get stealth)
 						//	detectRange += 0.2f * ( getLevel() - pObj->getLevel() );
@@ -5971,11 +5968,10 @@ int32 Player::CanShootRangedWeapon(uint32 spellid, Unit* target, bool autoshot)
 	// Check ammo
 	Item* itm = GetItemInterface()->GetInventoryItem(EQUIPMENT_SLOT_RANGED);
 	ItemPrototype* iprot = ItemPrototypeStorage.LookupEntry(GetAmmoId());
-	if(!m_requiresNoAmmo)
+	if(itm == NULL || disarmed) //Disarmed means disarmed, we shouldn't be able to cast Auto Shot while disarmed
+		return SPELL_FAILED_NO_AMMO; //In proper language means "Requires Ranged Weapon to be equipped"
+	if(!m_requiresNoAmmo) //Thori'dal, Wild Quiver, but it still requires to have a weapon equipped
 	{
-		if(itm == NULL)
-			return SPELL_FAILED_NO_AMMO;
-
 		// Check ammo level
 		if(iprot && getLevel() < iprot->RequiredLevel)
 			return SPELL_FAILED_LOWLEVEL;
@@ -8364,6 +8360,10 @@ bool Player::SafeTeleport(uint32 MapID, uint32 InstanceID, const LocationVector 
 		flying_aura = 0;
 	}
 
+	// Exit vehicle before teleporting
+	if( GetVehicleBase() != NULL )
+		GetVehicleBase()->GetVehicleComponent()->EjectPassenger( this );
+
 	// Lookup map info
 	if(mi && mi->flags & WMI_INSTANCE_XPACK_01 && !m_session->HasFlag(ACCOUNT_FLAG_XPACK_01) && !m_session->HasFlag(ACCOUNT_FLAG_XPACK_02))
 	{
@@ -9681,6 +9681,21 @@ uint32 Player::GetMainMeleeDamage(uint32 AP_owerride)
 void Player::EventPortToGM(Player* p)
 {
 	SafeTeleport(p->GetMapId(), p->GetInstanceID(), p->GetPosition());
+}
+
+void Player::AddComboPoints(uint64 target, int8 count)
+{
+			// GetTimeLeft() checked in SpellAura, so we won't lose points
+			RemoveAllAuraType(SPELL_AURA_RETAIN_COMBO_POINTS);
+
+			if(m_comboTarget == target)
+				m_comboPoints += count;
+			else
+			{
+				m_comboTarget = target;
+				m_comboPoints = count;
+			}
+			UpdateComboPoints();
 }
 
 void Player::UpdateComboPoints()
@@ -12387,7 +12402,11 @@ void Player::SendMessageToSet(WorldPacket* data, bool bToSelf, bool myteam_only)
 			{
 				Player* p = TO< Player* >(*itr);
 
-				if(p->GetSession() && p->GetTeam() == myteam && ! p->Social_IsIgnoring(GetLowGUID()) && (p->GetPhase() & myphase) != 0 && p->m_invisible == m_invisible)
+				if(p->GetSession()
+					&& p->GetTeam() == myteam
+					&& !p->Social_IsIgnoring(GetLowGUID())
+					&& (p->GetPhase() & myphase) != 0
+					&& p->m_invisible == (m_invisible || p->m_isGmInvisible))
 					p->SendPacket(data);
 			}
 		}
@@ -12410,7 +12429,12 @@ void Player::SendMessageToSet(WorldPacket* data, bool bToSelf, bool myteam_only)
 			{
 				Player* p = TO< Player* >(*itr);
 
-				if(p->GetSession() &&  ! p->Social_IsIgnoring(GetLowGUID()) && (p->GetPhase() & myphase) != 0 && p->m_invisible == m_invisible)
+				if(p->GetSession()
+					&& !p->Social_IsIgnoring(GetLowGUID())
+					&& (p->GetPhase() & myphase) != 0
+					//Not sure why are we checking p->m_invisible against m_invisible.
+					//If someone can clarify it, would be nice, for now let it be.
+					&& p->m_invisible == (m_invisible || p->m_isGmInvisible))
 					p->SendPacket(data);
 			}
 		}
@@ -12600,6 +12624,11 @@ void Player::DealDamage(Unit* pVictim, uint32 damage, uint32 targetEvent, uint32
 				GetAchievementMgr().UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_KILLING_BLOW, GetMapId(), 0, 0);
 #endif
 
+				if( pVictim->getLevel() >= (getLevel()-8) && ( GetGUID() != pVictim->GetGUID() ) )
+				{
+					HandleProc(PROC_ON_GAIN_EXPIERIENCE, this, NULL);
+					m_procCounter = 0;
+				}
 			}
 		}
 

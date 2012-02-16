@@ -308,7 +308,6 @@ Unit::Unit()
 		HealTakenMod[i] = 0;
 		HealTakenPctMod[i] = 0;
 		DamageTakenMod[i] = 0;
-		DamageDoneModPCT[i] = 0;
 		SchoolCastPrevent[i] = 0;
 		DamageTakenPctMod[i] = 0;
 		SpellCritChanceSchool[i] = 0;
@@ -1877,41 +1876,6 @@ uint32 Unit::HandleProc(uint32 flag, Unit* victim, SpellEntry* CastingSpell, boo
 							continue;
 					}
 					break;
-					//rogue - Find Weakness
-				case 31234:
-				case 31235:
-				case 31236:
-				case 31237:
-				case 31238:
-					{
-						if(CastingSpell == NULL)
-							continue;//this should not occur unless we made a fuckup somewhere
-						if(!(CastingSpell->c_is_flags & SPELL_FLAG_IS_FINISHING_MOVE))
-							continue;
-					}
-					break;
-					//Priest - Shadowguard
-				case 28377:
-				case 28378:
-				case 28379:
-				case 28380:
-				case 28381:
-				case 28382:
-				case 28385:
-					{
-						if(CastingSpell && (this == victim || !(CastingSpell->c_is_flags & SPELL_FLAG_IS_DAMAGING)))       //no self casts allowed or beneficial spells
-							continue;//we can proc on ranged weapons too
-					}
-					break;
-					//Priest - blackout
-				case 15269:
-					{
-						if(CastingSpell == NULL)
-							continue;//this should not occur unless we made a fuckup somewhere
-						if(CastingSpell->School != SCHOOL_SHADOW || !(CastingSpell->c_is_flags & SPELL_FLAG_IS_DAMAGING))
-							continue;
-					}
-					break;
 					//warrior - improved berserker rage
 				case 23690:
 				case 23691:
@@ -2535,7 +2499,7 @@ uint32 Unit::HandleProc(uint32 flag, Unit* victim, SpellEntry* CastingSpell, boo
 							break;
 						case 14177: // Cold blood will get removed on offensive spell
 							{
-								if(CastingSpell == NULL || CastingSpell->Id == 36554 || victim == this || isFriendly(this, victim))
+								if(!(CastingSpell->SpellGroupType[0] & 0x6820206 || CastingSpell->SpellGroupType[1] & 0x240009))
 									continue;
 							}
 							break;
@@ -3639,7 +3603,6 @@ void Unit::Strike(Unit* pVictim, uint32 weapon_damage_type, SpellEntry* ability,
 
 
 				dmg.full_damage += float2int32(dmg.full_damage * pVictim->DamageTakenPctMod[ dmg.school_type ]);
-				dmg.full_damage += float2int32(dmg.full_damage * DamageDoneModPCT[dmg.school_type]);
 
 				if(dmg.school_type != SCHOOL_NORMAL)
 					dmg.full_damage += float2int32(dmg.full_damage * (GetDamageDonePctMod(dmg.school_type) - 1));
@@ -3662,19 +3625,11 @@ void Unit::Strike(Unit* pVictim, uint32 weapon_damage_type, SpellEntry* ability,
 					case 3:
 						{
 							float low_dmg_mod = 1.5f - (0.05f * diffAcapped);
-							if(this->getClass() == MAGE || this->getClass() == PRIEST || this->getClass() == WARLOCK) //casters = additional penalty.
-							{
-								low_dmg_mod -= 0.7f;
-							}
 							if(low_dmg_mod < 0.01)
 								low_dmg_mod = 0.01f;
 							if(low_dmg_mod > 0.91)
 								low_dmg_mod = 0.91f;
 							float high_dmg_mod = 1.2f - (0.03f * diffAcapped);
-							if(this->getClass() == MAGE || this->getClass() == PRIEST || this->getClass() == WARLOCK) //casters = additional penalty.
-							{
-								high_dmg_mod -= 0.3f;
-							}
 							if(high_dmg_mod > 0.99)
 								high_dmg_mod = 0.99f;
 							if(high_dmg_mod < 0.2)
@@ -3965,8 +3920,9 @@ void Unit::Strike(Unit* pVictim, uint32 weapon_damage_type, SpellEntry* ability,
 		if(GetSummonedByGUID() != 0 && GetEntry() == 19668)
 		{
 			Player* owner = GetMapMgr()->GetPlayer((uint32)GetSummonedByGUID());
+			uint32 amount = static_cast< uint32 >(owner->GetMaxPower( POWER_TYPE_MANA ) * 0.05f);
 			if(owner != NULL)
-				this->Energize(owner, 34433, float2int32(2.5f * realdamage + 0.5f), POWER_TYPE_MANA);
+				this->Energize(owner, 34650, amount, POWER_TYPE_MANA);
 		}
 		//ugly hack for Bloodsworm restoring hp
 		if(GetUInt64Value(UNIT_FIELD_SUMMONEDBY) != 0 && GetUInt32Value(OBJECT_FIELD_ENTRY) == 28017)
@@ -5163,7 +5119,7 @@ void Unit::castSpell(Spell* pSpell)
 
 int32 Unit::GetSpellDmgBonus(Unit* pVictim, SpellEntry* spellInfo, int32 base_dmg, bool isdot)
 {
-	int32 plus_damage = 0;
+	float plus_damage = 0.0f;
 	Unit* caster = this;
 	uint32 school = spellInfo->School;
 
@@ -5186,7 +5142,7 @@ int32 Unit::GetSpellDmgBonus(Unit* pVictim, SpellEntry* spellInfo, int32 base_dm
 
 //------------------------------by school---------------------------------------------------
 	plus_damage += caster->GetDamageDoneMod(school);
-	plus_damage += pVictim->DamageTakenMod[school];
+	plus_damage += static_cast< int32 >( base_dmg * (caster->GetDamageDonePctMod(school)-1) ); //value is initialized with 1
 //------------------------------by victim type----------------------------------------------
 	if(!pVictim->IsPlayer() && caster->IsPlayer())
 		plus_damage += TO< Player* >(caster)->IncreaseDamageByType[TO_CREATURE(pVictim)->GetCreatureInfo()->Type];
@@ -5195,45 +5151,53 @@ int32 Unit::GetSpellDmgBonus(Unit* pVictim, SpellEntry* spellInfo, int32 base_dm
 //==========================================================================================
 //------------------------------by cast duration--------------------------------------------
 	float dmgdoneaffectperc = 1.0f;
-	if(spellInfo->Dspell_coef_override >= 0 && !isdot)
-		plus_damage = float2int32(plus_damage * spellInfo->Dspell_coef_override);
-	else if(spellInfo->OTspell_coef_override >= 0 && isdot)
-		plus_damage = float2int32(plus_damage * spellInfo->OTspell_coef_override);
-	else
+
+	// do not execute this if plus dmg is 0 or lower
+	if( plus_damage > 0.0f )
 	{
-		//Bonus to DD part
-		if(spellInfo->fixed_dddhcoef >= 0 && !isdot)
-			plus_damage = float2int32(plus_damage * spellInfo->fixed_dddhcoef);
-		//Bonus to DoT part
-		else if(spellInfo->fixed_hotdotcoef >= 0 && isdot)
-		{
-			plus_damage = float2int32(plus_damage * spellInfo->fixed_hotdotcoef);
-			if(caster->IsPlayer())
-			{
-				int durmod = 0;
-				SM_FIValue(caster->SM_FDur, &durmod, spellInfo->SpellGroupType);
-				plus_damage += plus_damage * durmod / 15000;
-			}
-		}
-		//In case we dont fit in previous cases do old thing
+		if( spellInfo->Dspell_coef_override >= 0 && !isdot )
+			plus_damage = plus_damage * spellInfo->Dspell_coef_override;
+		else if( spellInfo->OTspell_coef_override >= 0 && isdot )
+			plus_damage = plus_damage * spellInfo->OTspell_coef_override;
 		else
 		{
-			plus_damage = float2int32(plus_damage * spellInfo->casttime_coef);
-			float td = float(GetDuration(dbcSpellDuration.LookupEntry(spellInfo->DurationIndex)));
-			if(spellInfo->NameHash == SPELL_HASH_MOONFIRE || spellInfo->NameHash == SPELL_HASH_IMMOLATE || spellInfo->NameHash == SPELL_HASH_ICE_LANCE || spellInfo->NameHash == SPELL_HASH_PYROBLAST)
-				plus_damage = float2int32(plus_damage * (1.0f - ((td / 15000.0f) / ((td / 15000.0f) + dmgdoneaffectperc))));
+			//Bonus to DD part
+			if( spellInfo->fixed_dddhcoef >= 0 && !isdot )
+				plus_damage = plus_damage * spellInfo->fixed_dddhcoef;
+			//Bonus to DoT part
+			else if( spellInfo->fixed_hotdotcoef >= 0 && isdot )
+			{
+				plus_damage = plus_damage * spellInfo->fixed_hotdotcoef;
+				if(caster->IsPlayer())
+				{
+					int32 durmod = 0;
+					SM_FIValue( caster->SM_FDur, &durmod, spellInfo->SpellGroupType );
+					plus_damage += static_cast< float >( plus_damage * durmod / 15000 );
+				}
+			}
+			//In case we dont fit in previous cases do old thing
+			else
+			{
+				plus_damage = plus_damage * spellInfo->casttime_coef;
+				float td = static_cast< float >( GetDuration( dbcSpellDuration.LookupEntry( spellInfo->DurationIndex ) ) );
+				if( spellInfo->NameHash == SPELL_HASH_MOONFIRE
+					|| spellInfo->NameHash == SPELL_HASH_IMMOLATE
+					|| spellInfo->NameHash == SPELL_HASH_ICE_LANCE
+					|| spellInfo->NameHash == SPELL_HASH_PYROBLAST )
+					plus_damage = plus_damage * ( 1.0f - ( ( td / 15000.0f ) / ( ( td / 15000.0f ) + dmgdoneaffectperc ) ) );
+			}
 		}
 	}
 
 	//------------------------------by downranking----------------------------------------------
 	//DOT-DD (Moonfire-Immolate-IceLance-Pyroblast)(Hack Fix)
 
-	if(spellInfo->baseLevel > 0 && spellInfo->maxLevel > 0)
+	if( spellInfo->baseLevel > 0 && spellInfo->maxLevel > 0 )
 	{
 		float downrank1 = 1.0f;
 		if(spellInfo->baseLevel < 20)
 			downrank1 = 1.0f - (20.0f - float(spellInfo->baseLevel)) * 0.0375f;
-		float downrank2 = (spellInfo->maxLevel + 5.0f) / TO< Player* >(caster)->getLevel();
+		float downrank2 = static_cast< float >( (spellInfo->maxLevel + 5.0f) / TO< Player* >(caster)->getLevel() );
 		if(downrank2 >= 1 || downrank2 < 0)
 			downrank2 = 1.0f;
 		dmgdoneaffectperc *= downrank1 * downrank2;
@@ -5241,33 +5205,35 @@ int32 Unit::GetSpellDmgBonus(Unit* pVictim, SpellEntry* spellInfo, int32 base_dm
 //==========================================================================================
 //==============================Bonus Adding To Main Damage=================================
 //==========================================================================================
-	int32 bonus_damage = float2int32(plus_damage * dmgdoneaffectperc);
 
 	if((pVictim->HasAuraWithMechanics(MECHANIC_ENSNARED) || pVictim->HasAuraWithMechanics(MECHANIC_DAZED)) && caster->IsPlayer())
-		bonus_damage += TO< Player* >(caster)->m_IncreaseDmgSnaredSlowed;
+		plus_damage += static_cast< float >(TO< Player* >(caster)->m_IncreaseDmgSnaredSlowed);
 
 	if(spellInfo->SpellGroupType)
 	{
+		int32 bonus_damage = 0;
 		SM_FIValue(caster->SM_FPenalty, &bonus_damage, spellInfo->SpellGroupType);
 		SM_FIValue(caster->SM_FDamageBonus, &bonus_damage, spellInfo->SpellGroupType);
 
-		int dmg_bonus_pct = 0;
+		int32 dmg_bonus_pct = 0;
 		SM_FIValue(caster->SM_PPenalty, &dmg_bonus_pct, spellInfo->SpellGroupType);
 		SM_FIValue(caster->SM_PDamageBonus, &dmg_bonus_pct, spellInfo->SpellGroupType);
 
-		bonus_damage += (base_dmg + bonus_damage) * dmg_bonus_pct / 100;
+		plus_damage += static_cast< float >( (base_dmg + bonus_damage) * dmg_bonus_pct / 100 );
 	}
-//------------------------------by school----------------------------------------------
-	float summaryPCTmod = caster->GetDamageDonePctMod(school) - 1; //value is initialized with 1
-	summaryPCTmod += pVictim->DamageTakenPctMod[school];
-	summaryPCTmod += caster->DamageDoneModPCT[school];	// BURLEX FIX ME
-	summaryPCTmod += pVictim->ModDamageTakenByMechPCT[spellInfo->MechanicsType];
 
-	int32 res = (int32)((base_dmg + bonus_damage) * summaryPCTmod + bonus_damage);
-	if(res < 0)
-		res = 0;
+	int32 res = static_cast< int32 >( (base_dmg * dmgdoneaffectperc) + plus_damage );
 
 	return res;
+}
+
+float Unit::CalcSpellDamageReduction(Unit* victim, SpellEntry* spell, float res)
+{
+	float reduced_damage = 0;
+	reduced_damage += static_cast< float >( victim->DamageTakenMod[spell->School] );
+	reduced_damage += res * victim->DamageTakenPctMod[spell->School];
+	reduced_damage += res * victim->ModDamageTakenByMechPCT[spell->MechanicsType];
+	return reduced_damage;
 }
 
 void Unit::InterruptSpell()
