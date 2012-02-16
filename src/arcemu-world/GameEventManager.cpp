@@ -530,16 +530,6 @@ void GameEventMgr::DoScript(uint32 event_id, uint32 sql_id, uint8 type, uint32 d
 			c->EventModelChange();
 		} break;
 
-		case CREATURE_CHANGE_WEAPON:
-		{
-			es->data_1 = c->GetEquippedItem(MELEE);
-			es->data_2 = c->GetEquippedItem(OFFHAND);
-			es->data_3 = c->GetEquippedItem(RANGED);
-			c->SetEquippedItem(MELEE, data1);
-			c->SetEquippedItem(OFFHAND, data2);
-			c->SetEquippedItem(RANGED, data3);
-		} break;
-
 		case CREATURE_CHANGE_REACT:
 		{
 			es->data_1 = c->GetFaction();
@@ -673,13 +663,6 @@ void GameEventMgr::ScriptedBackToOrig(uint32 event_id)
 				c->SetMount(data3);
 
 				c->EventModelChange();
-			} break;
-
-			case CREATURE_CHANGE_WEAPON:
-			{
-				c->SetEquippedItem(MELEE, data1);
-				c->SetEquippedItem(OFFHAND, data2);
-				c->SetEquippedItem(RANGED, data3);
 			} break;
 
 			case CREATURE_CHANGE_REACT:
