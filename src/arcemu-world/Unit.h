@@ -1593,10 +1593,6 @@ class SERVER_DECL Unit : public Object
 				RemoveAura(m_invisibility);
 				m_invisibility = 0;
 			}
-			else if(m_mageInvisibility != 0)
-			{
-				m_mageInvisibility = false;
-			}
 		}
 
 		uint32 m_stealth;
@@ -1702,7 +1698,6 @@ class SERVER_DECL Unit : public Object
 		void EventUpdateFlag();
 		CombatStatusHandler CombatStatus;
 		bool m_temp_summon;
-		bool m_mageInvisibility;
 
 		void CancelSpell(Spell* ptr);
 		void EventStrikeWithAbility(uint64 guid, SpellEntry* sp, uint32 damage);
