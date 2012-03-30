@@ -1237,6 +1237,8 @@ class SERVER_DECL Unit : public Object
 		//caller is the caster
 		int32 GetSpellDmgBonus(Unit* pVictim, SpellEntry* spellInfo, int32 base_dmg, bool isdot);
 
+		float CalcSpellDamageReduction(Unit* victim, SpellEntry* spell, float res);
+
 		uint32 m_addDmgOnce;
 		uint32 m_ObjectSlots[4];
 		uint32 m_triggerSpell;
@@ -1304,7 +1306,6 @@ class SERVER_DECL Unit : public Object
 		virtual int32 GetDamageDoneMod(uint32 school) { return 0; }
 		virtual float GetDamageDonePctMod(uint32 school) { return 0; }
 
-		float DamageDoneModPCT[SCHOOL_COUNT];
 		int32 DamageTakenMod[SCHOOL_COUNT];
 		float DamageTakenPctMod[SCHOOL_COUNT];
 		float DamageTakenPctModOnHP35;
@@ -1592,10 +1593,6 @@ class SERVER_DECL Unit : public Object
 				RemoveAura(m_invisibility);
 				m_invisibility = 0;
 			}
-			else if(m_mageInvisibility != 0)
-			{
-				m_mageInvisibility = false;
-			}
 		}
 
 		uint32 m_stealth;
@@ -1701,7 +1698,6 @@ class SERVER_DECL Unit : public Object
 		void EventUpdateFlag();
 		CombatStatusHandler CombatStatus;
 		bool m_temp_summon;
-		bool m_mageInvisibility;
 
 		void CancelSpell(Spell* ptr);
 		void EventStrikeWithAbility(uint64 guid, SpellEntry* sp, uint32 damage);

@@ -324,6 +324,7 @@ void WorldSession::HandleMovementOpcodes(WorldPacket & recv_data)
 	/************************************************************************/
 	if(recv_data.GetOpcode() == MSG_MOVE_START_FORWARD)
 		_player->SetStandState(STANDSTATE_STAND);
+
 	/************************************************************************/
 	/* Make sure the packet is the correct size range.                      */
 	/************************************************************************/
@@ -346,6 +347,18 @@ void WorldSession::HandleMovementOpcodes(WorldPacket & recv_data)
 	if( mover == NULL )
 		return;
 
+	/* Anti Multi-Jump Check */
+	if(recv_data.GetOpcode() == MSG_MOVE_JUMP && _player->jumping == true && !GetPermissionCount())
+	{
+		sCheatLog.writefromsession(this, "Detected jump hacking");
+		Disconnect();
+		return;
+	}
+	if(recv_data.GetOpcode() == MSG_MOVE_FALL_LAND || movement_info.flags & MOVEFLAG_SWIMMING)
+		_player->jumping = false;
+	if(!_player->jumping && (recv_data.GetOpcode() == MSG_MOVE_JUMP || movement_info.flags & MOVEFLAG_FALLING))
+		_player->jumping = true;
+
 	/************************************************************************/
 	/* Update player movement state                                         */
 	/************************************************************************/
@@ -361,18 +374,18 @@ void WorldSession::HandleMovementOpcodes(WorldPacket & recv_data)
 		case MSG_MOVE_START_STRAFE_RIGHT:
 			_player->strafing = true;
 			break;
-			/*case MSG_MOVE_JUMP:
-				_player->jumping = true;
-				break;*/
+		case MSG_MOVE_JUMP:
+			_player->jumping = true;
+			break;
 		case MSG_MOVE_STOP:
 			_player->moving = false;
 			break;
 		case MSG_MOVE_STOP_STRAFE:
 			_player->strafing = false;
 			break;
-			/*case MSG_MOVE_FALL_LAND:
-				_player->jumping = false;
-				break;*/
+		case MSG_MOVE_FALL_LAND:
+			_player->jumping = false;
+			break;
 
 		default:
 			moved = false;
@@ -402,6 +415,12 @@ void WorldSession::HandleMovementOpcodes(WorldPacket & recv_data)
 		}
 	}
 
+	// Rotating your character with a hold down right click mouse button
+	if(_player->GetOrientation() != movement_info.orientation)
+		_player->isTurning = true;
+	else
+		_player->isTurning = false;
+
 
 	/************************************************************************/
 	/* Anti-Fly Hack Checks       - Alice : Disabled for now                                           */
@@ -418,17 +437,6 @@ void WorldSession::HandleMovementOpcodes(WorldPacket & recv_data)
 			sEventMgr.AddEvent( _player, &Player::_Kick, EVENT_PLAYER_KICK, 5000, 1, 0 );
 		}
 	} */
-	/*Anti Multi-Jump Check*/
-	if(recv_data.GetOpcode() == MSG_MOVE_JUMP && _player->jumping == true && !GetPermissionCount())
-	{
-		sCheatLog.writefromsession(this, "Detected jump hacking");
-		Disconnect();
-		return;
-	}
-	if(recv_data.GetOpcode() == MSG_MOVE_FALL_LAND || movement_info.flags & MOVEFLAG_SWIMMING)
-		_player->jumping = false;
-	if(!_player->jumping && (recv_data.GetOpcode() == MSG_MOVE_JUMP || movement_info.flags & MOVEFLAG_FALLING))
-		_player->jumping = true;
 
 	if(!(HasGMPermissions() && sWorld.no_antihack_on_gm) && !_player->GetCharmedUnitGUID())
 	{
@@ -684,8 +692,10 @@ void WorldSession::HandleMovementOpcodes(WorldPacket & recv_data)
 		flags |= AURA_INTERRUPT_ON_LEAVE_WATER;
 	if(movement_info.flags & MOVEFLAG_SWIMMING)
 		flags |= AURA_INTERRUPT_ON_ENTER_WATER;
-	if(movement_info.flags & (MOVEFLAG_TURN_LEFT | MOVEFLAG_TURN_RIGHT))
+	if((movement_info.flags & MOVEFLAG_TURNING_MASK) || _player->isTurning)
 		flags |= AURA_INTERRUPT_ON_TURNING;
+	if(movement_info.flags & MOVEFLAG_REDIRECTED)
+		flags |= AURA_INTERRUPT_ON_JUMP;
 
 	_player->RemoveAurasByInterruptFlag(flags);
 

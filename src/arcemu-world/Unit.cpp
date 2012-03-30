@@ -264,7 +264,6 @@ Unit::Unit()
 	m_invisibility = 0;
 	m_invisible = false;
 	m_invisFlag = INVIS_FLAG_NORMAL;
-	m_mageInvisibility = false;
 
 	for(i = 0; i < INVIS_FLAG_TOTAL; i++)
 	{
@@ -308,7 +307,6 @@ Unit::Unit()
 		HealTakenMod[i] = 0;
 		HealTakenPctMod[i] = 0;
 		DamageTakenMod[i] = 0;
-		DamageDoneModPCT[i] = 0;
 		SchoolCastPrevent[i] = 0;
 		DamageTakenPctMod[i] = 0;
 		SpellCritChanceSchool[i] = 0;
@@ -1752,6 +1750,12 @@ uint32 Unit::HandleProc(uint32 flag, Unit* victim, SpellEntry* CastingSpell, boo
 				case 16177:
 				case 16236:
 				case 16237:
+					{
+						if(CastingSpell == NULL)
+							continue;
+						if(CastingSpell->NameHash == SPELL_HASH_EARTH_SHIELD)   //Do not proc on Earth Shield crits
+							continue;
+					}
 					//Shaman - Earthliving Weapon
 				case 51940:
 				case 51989:
@@ -3604,7 +3608,6 @@ void Unit::Strike(Unit* pVictim, uint32 weapon_damage_type, SpellEntry* ability,
 
 
 				dmg.full_damage += float2int32(dmg.full_damage * pVictim->DamageTakenPctMod[ dmg.school_type ]);
-				dmg.full_damage += float2int32(dmg.full_damage * DamageDoneModPCT[dmg.school_type]);
 
 				if(dmg.school_type != SCHOOL_NORMAL)
 					dmg.full_damage += float2int32(dmg.full_damage * (GetDamageDonePctMod(dmg.school_type) - 1));
@@ -5121,16 +5124,16 @@ void Unit::castSpell(Spell* pSpell)
 
 int32 Unit::GetSpellDmgBonus(Unit* pVictim, SpellEntry* spellInfo, int32 base_dmg, bool isdot)
 {
-	int32 plus_damage = 0;
+	float plus_damage = 0.0f;
 	Unit* caster = this;
 	uint32 school = spellInfo->School;
 
 	if(spellInfo->c_is_flags & SPELL_FLAG_IS_NOT_USING_DMG_BONUS)
 		return 0;
 
-	if(caster->IsPlayer())
+	if( caster->IsPlayer())
 	{
-		switch(TO< Player* >(this)->getClass())
+		switch( TO< Player* >(this)->getClass() )
 		{
 			case ROGUE:
 			case WARRIOR:
@@ -5143,89 +5146,83 @@ int32 Unit::GetSpellDmgBonus(Unit* pVictim, SpellEntry* spellInfo, int32 base_dm
 	}
 
 //------------------------------by school---------------------------------------------------
-	plus_damage += caster->GetDamageDoneMod(school);
-	plus_damage += pVictim->DamageTakenMod[school];
+	plus_damage += static_cast< float >( caster->GetDamageDoneMod(school) );
+	plus_damage += static_cast< float >( base_dmg * ( caster->GetDamageDonePctMod(school)-1) ); //value is initialized with 1
 //------------------------------by victim type----------------------------------------------
-	if(!pVictim->IsPlayer() && caster->IsPlayer())
-		plus_damage += TO< Player* >(caster)->IncreaseDamageByType[TO_CREATURE(pVictim)->GetCreatureInfo()->Type];
+	if( !pVictim->IsPlayer() && caster->IsPlayer() )
+		plus_damage += static_cast< float >( TO< Player* >(caster)->IncreaseDamageByType[TO< Creature* >(pVictim)->GetCreatureInfo()->Type] );
 //==========================================================================================
 //==============================+Spell Damage Bonus Modifications===========================
 //==========================================================================================
 //------------------------------by cast duration--------------------------------------------
-	float dmgdoneaffectperc = 1.0f;
-	if(spellInfo->Dspell_coef_override >= 0 && !isdot)
-		plus_damage = float2int32(plus_damage * spellInfo->Dspell_coef_override);
-	else if(spellInfo->OTspell_coef_override >= 0 && isdot)
-		plus_damage = float2int32(plus_damage * spellInfo->OTspell_coef_override);
-	else
+
+	// do not execute this if plus dmg is 0 or lower
+	if( plus_damage > 0.0f )
 	{
-		//Bonus to DD part
-		if(spellInfo->fixed_dddhcoef >= 0 && !isdot)
-			plus_damage = float2int32(plus_damage * spellInfo->fixed_dddhcoef);
-		//Bonus to DoT part
-		else if(spellInfo->fixed_hotdotcoef >= 0 && isdot)
-		{
-			plus_damage = float2int32(plus_damage * spellInfo->fixed_hotdotcoef);
-			if(caster->IsPlayer())
-			{
-				int durmod = 0;
-				SM_FIValue(caster->SM_FDur, &durmod, spellInfo->SpellGroupType);
-				plus_damage += plus_damage * durmod / 15000;
-			}
-		}
-		//In case we dont fit in previous cases do old thing
+		if( spellInfo->Dspell_coef_override >= 0.0f && !isdot )
+			plus_damage = plus_damage * spellInfo->Dspell_coef_override;
+		else if( spellInfo->OTspell_coef_override >= 0.0f && isdot )
+			plus_damage = plus_damage * spellInfo->OTspell_coef_override;
 		else
 		{
-			plus_damage = float2int32(plus_damage * spellInfo->casttime_coef);
-			float td = float(GetDuration(dbcSpellDuration.LookupEntry(spellInfo->DurationIndex)));
-			if(spellInfo->NameHash == SPELL_HASH_MOONFIRE || spellInfo->NameHash == SPELL_HASH_IMMOLATE || spellInfo->NameHash == SPELL_HASH_ICE_LANCE || spellInfo->NameHash == SPELL_HASH_PYROBLAST)
-				plus_damage = float2int32(plus_damage * (1.0f - ((td / 15000.0f) / ((td / 15000.0f) + dmgdoneaffectperc))));
+			//Bonus to DD part
+			if( spellInfo->fixed_dddhcoef >= 0.0f && !isdot )
+				plus_damage = plus_damage * spellInfo->fixed_dddhcoef;
+			//Bonus to DoT part
+			else if( spellInfo->fixed_hotdotcoef >= 0.0f && isdot )
+			{
+				plus_damage = plus_damage * spellInfo->fixed_hotdotcoef;
+				if( caster->IsPlayer() )
+				{
+					int32 durmod = 0;
+					SM_FIValue( caster->SM_FDur, &durmod, spellInfo->SpellGroupType );
+					plus_damage += static_cast< float >( plus_damage * durmod / 15000 );
+				}
+			}
+			//In case we dont fit in previous cases do old thing
+			else
+			{
+				plus_damage = plus_damage * spellInfo->casttime_coef;
+				float td = static_cast< float >( GetDuration( dbcSpellDuration.LookupEntry( spellInfo->DurationIndex ) ) );
+				if( spellInfo->NameHash == SPELL_HASH_MOONFIRE
+					|| spellInfo->NameHash == SPELL_HASH_IMMOLATE
+					|| spellInfo->NameHash == SPELL_HASH_ICE_LANCE
+					|| spellInfo->NameHash == SPELL_HASH_PYROBLAST )
+					plus_damage = plus_damage * ( 1.0f - ( ( td / 15000.0f ) / ( ( td / 15000.0f ) ) ) );
+			}
 		}
 	}
 
-	//------------------------------by downranking----------------------------------------------
-	//DOT-DD (Moonfire-Immolate-IceLance-Pyroblast)(Hack Fix)
-
-	if(spellInfo->baseLevel > 0 && spellInfo->maxLevel > 0)
-	{
-		float downrank1 = 1.0f;
-		if(spellInfo->baseLevel < 20)
-			downrank1 = 1.0f - (20.0f - float(spellInfo->baseLevel)) * 0.0375f;
-		float downrank2 = (spellInfo->maxLevel + 5.0f) / TO< Player* >(caster)->getLevel();
-		if(downrank2 >= 1 || downrank2 < 0)
-			downrank2 = 1.0f;
-		dmgdoneaffectperc *= downrank1 * downrank2;
-	}
 //==========================================================================================
 //==============================Bonus Adding To Main Damage=================================
 //==========================================================================================
-	int32 bonus_damage = float2int32(plus_damage * dmgdoneaffectperc);
 
 	if((pVictim->HasAuraWithMechanics(MECHANIC_ENSNARED) || pVictim->HasAuraWithMechanics(MECHANIC_DAZED)) && caster->IsPlayer())
-		bonus_damage += TO< Player* >(caster)->m_IncreaseDmgSnaredSlowed;
+		plus_damage += static_cast< float >(TO< Player* >(caster)->m_IncreaseDmgSnaredSlowed);
 
 	if(spellInfo->SpellGroupType)
 	{
+		int32 bonus_damage = 0;
 		SM_FIValue(caster->SM_FPenalty, &bonus_damage, spellInfo->SpellGroupType);
 		SM_FIValue(caster->SM_FDamageBonus, &bonus_damage, spellInfo->SpellGroupType);
 
-		int dmg_bonus_pct = 0;
+		int32 dmg_bonus_pct = 0;
 		SM_FIValue(caster->SM_PPenalty, &dmg_bonus_pct, spellInfo->SpellGroupType);
 		SM_FIValue(caster->SM_PDamageBonus, &dmg_bonus_pct, spellInfo->SpellGroupType);
 
-		bonus_damage += (base_dmg + bonus_damage) * dmg_bonus_pct / 100;
+		plus_damage += static_cast< float >( (base_dmg + bonus_damage) * dmg_bonus_pct / 100 );
 	}
-//------------------------------by school----------------------------------------------
-	float summaryPCTmod = caster->GetDamageDonePctMod(school) - 1; //value is initialized with 1
-	summaryPCTmod += pVictim->DamageTakenPctMod[school];
-	summaryPCTmod += caster->DamageDoneModPCT[school];	// BURLEX FIX ME
-	summaryPCTmod += pVictim->ModDamageTakenByMechPCT[spellInfo->MechanicsType];
 
-	int32 res = (int32)((base_dmg + bonus_damage) * summaryPCTmod + bonus_damage);
-	if(res < 0)
-		res = 0;
+	return static_cast< int32 >( plus_damage );
+}
 
-	return res;
+float Unit::CalcSpellDamageReduction(Unit* victim, SpellEntry* spell, float res)
+{
+	float reduced_damage = 0;
+	reduced_damage += static_cast< float >( victim->DamageTakenMod[spell->School] );
+	reduced_damage += res * victim->DamageTakenPctMod[spell->School];
+	reduced_damage += res * victim->ModDamageTakenByMechPCT[spell->MechanicsType];
+	return reduced_damage;
 }
 
 void Unit::InterruptSpell()
@@ -7808,8 +7805,14 @@ uint64 Unit::GetTaggerGUID()
 
 bool Unit::isLootable()
 {
-	if(IsTagged() && !IsPet() && !isCritter() && !(IsPlayer() && !IsInBg()) && ( GetCreatedByGUID() == 0 ) && !IsVehicle() )
+	if(IsTagged() && !IsPet() && !isCritter() && !(IsPlayer() && !IsInBg()) && ( GetCreatedByGUID() == 0 ) && !IsVehicle() ){
+		if( IsCreature()  &&
+			!lootmgr.HasLootForCreature( GetEntry() ) &&
+			( CreatureProtoStorage.LookupEntry( GetEntry() )->money == 0 ) ) // Since it is inworld we can safely assume there is a proto cached with this Id!
+			return false;
+
 		return true;
+	}
 	else
 		return false;
 }
@@ -8032,72 +8035,74 @@ bool Unit::IsCriticalDamageForSpell(Object* victim, SpellEntry* spell)
 
 	if(spell->is_ranged_spell)
 	{
-		if(IsPlayer())
+		if( IsPlayer() )
 		{
 			CritChance = GetFloatValue(PLAYER_RANGED_CRIT_PERCENTAGE);
-			if(victim->IsPlayer())
-				CritChance += TO_PLAYER(victim)->res_R_crit_get();
+			if( victim->IsPlayer() )
+				CritChance += TO< Player* >(victim)->res_R_crit_get();
 
-			if(victim->IsUnit())
-				CritChance += (float)(TO_UNIT(victim)->AttackerCritChanceMod[spell->School]);
+			if( victim->IsUnit() )
+				CritChance += static_cast< float >(TO< Unit* >(victim)->AttackerCritChanceMod[spell->School]);
 		}
 		else
 			CritChance = 5.0f; // static value for mobs.. not blizzlike, but an unfinished formula is not fatal :)
 
-		if(victim->IsPlayer())
+		if( victim->IsPlayer() )
 			resilience_type = PLAYER_RATING_MODIFIER_RANGED_CRIT_RESILIENCE;
 	}
 	else if(spell->is_melee_spell)
 	{
-		// Same shit with the melee spells, such as Judgement/Seal of Command
-		if(IsPlayer())
+		// Same shit with the melee spells, such as Judgment/Seal of Command
+		if( IsPlayer() )
 			CritChance = GetFloatValue(PLAYER_CRIT_PERCENTAGE);
 
-		if(victim->IsPlayer())
+		if( victim->IsPlayer() )
 		{
-			CritChance += TO_PLAYER(victim)->res_R_crit_get(); //this could be ability but in that case we overwrite the value
+			CritChance += TO< Player* >(victim)->res_R_crit_get(); //this could be ability but in that case we overwrite the value
 			resilience_type = PLAYER_RATING_MODIFIER_MELEE_CRIT_RESILIENCE;
 		}
 
 		// Victim's (!) crit chance mod for physical attacks?
-		if(victim->IsUnit())
-			CritChance += (float)(TO_UNIT(victim)->AttackerCritChanceMod[0]);
+		if( victim->IsUnit() )
+			CritChance += static_cast< float >(TO< Unit* >(victim)->AttackerCritChanceMod[0]);
 	}
 	else
 	{
 		CritChance = spellcritperc + SpellCritChanceSchool[spell->School];
 
-		if(victim->IsUnit())
+		if( victim->IsUnit() )
 		{
-			CritChance += TO_UNIT(victim)->AttackerCritChanceMod[spell->School];
+			CritChance += static_cast< float >(TO< Unit* >(victim)->AttackerCritChanceMod[spell->School]);
 
-			if(IsPlayer() && (TO_UNIT(victim)->m_rooted - TO_UNIT(victim)->m_stunned))
-				CritChance += TO_PLAYER(this)->m_RootedCritChanceBonus;
+			if( IsPlayer() && (TO< Unit* >(victim)->m_rooted - TO< Unit* >(victim)->m_stunned) )
+				CritChance += static_cast< float >(TO< Player* >(this)->m_RootedCritChanceBonus);
 		}
 
 		if(spell->SpellGroupType)
 			SM_FFValue(SM_CriticalChance, &CritChance, spell->SpellGroupType);
 
-		if(victim->IsPlayer())
+		if( victim->IsPlayer() )
 			resilience_type = PLAYER_RATING_MODIFIER_SPELL_CRIT_RESILIENCE;
 	}
 
 	if(resilience_type)
-		CritChance -= TO_PLAYER(victim)->CalcRating(resilience_type);
+		CritChance -= TO< Player* >(victim)->CalcRating(resilience_type);
 
-	if(CritChance < 0)
-		CritChance = 0;
-	else if(CritChance > 95)
-		CritChance = 95;
+	if(CritChance < 0.0f)
+		CritChance = 0.0f;
+	else if(CritChance > 95.0f)
+		CritChance = 95.0f;
 
 	result = Rand(CritChance);
 
 	// HACK!!!
 	Aura* fs = NULL;
-	if(victim->IsUnit() && spell->NameHash == SPELL_HASH_LAVA_BURST && (fs = TO_UNIT(victim)->FindAuraByNameHash(SPELL_HASH_FLAME_SHOCK)) != NULL)
+	if(victim->IsUnit()
+		&& spell->NameHash == SPELL_HASH_LAVA_BURST
+		&& ( fs = TO< Unit* >(victim)->FindAuraByNameHash(SPELL_HASH_FLAME_SHOCK) ) != NULL)
 	{
 		result = true;
-		if(! HasAura(55447))	// Glyph of Flame Shock
+		if( !HasAura(55447) )	// Glyph of Flame Shock
 			fs->Remove();
 	}
 
@@ -8123,7 +8128,7 @@ float Unit::GetCriticalDamageBonusForSpell(Object* victim, SpellEntry* spell, fl
 		amount *= b;
 	}
 
-	if(victim->IsPlayer())
+	if( victim->IsPlayer() )
 	{
 		//res = res*(1.0f-2.0f*TO< Player* >(pVictim)->CalcRating(PLAYER_RATING_MODIFIER_MELEE_CRIT_RESISTANCE));
 		//Resilience is a special new rating which was created to reduce the effects of critical hits against your character.
@@ -8132,7 +8137,7 @@ float Unit::GetCriticalDamageBonusForSpell(Object* victim, SpellEntry* spell, fl
 		//It is believed that resilience also functions against spell crits,
 		//though it's worth noting that NPC mobs cannot get critical hits with spells.
 
-		float dmg_reduction_pct = 2 * TO_PLAYER(victim)->CalcRating(PLAYER_RATING_MODIFIER_MELEE_CRIT_RESILIENCE) / 100.0f;
+		float dmg_reduction_pct = 2 * TO< Player* >(victim)->CalcRating(PLAYER_RATING_MODIFIER_MELEE_CRIT_RESILIENCE) / 100.0f;
 
 		if(dmg_reduction_pct > 1.0f)
 			dmg_reduction_pct = 1.0f; //we cannot resist more then he is criticalling us, there is no point of the critical then :P
@@ -8140,8 +8145,8 @@ float Unit::GetCriticalDamageBonusForSpell(Object* victim, SpellEntry* spell, fl
 		amount -= amount * dmg_reduction_pct;
 	}
 
-	if(victim->IsCreature() && TO_CREATURE(victim)->GetCreatureInfo()->Rank != ELITE_WORLDBOSS)
-		TO_CREATURE(victim)->Emote(EMOTE_ONESHOT_WOUNDCRITICAL);
+	if(victim->IsCreature() && TO< Creature* >(victim)->GetCreatureInfo()->Rank != ELITE_WORLDBOSS)
+		TO< Creature* >(victim)->Emote(EMOTE_ONESHOT_WOUNDCRITICAL);
 
 	return amount;
 }

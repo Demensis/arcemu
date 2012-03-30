@@ -13,17 +13,14 @@ SET(sources
 	AddonMgr.cpp 
 	AIInterface.cpp 
 	AIEvents.cpp
-	AlteracValley.cpp 
-	ArathiBasin.cpp 
 	AreaTrigger.cpp 
 	Arenas.cpp 
 	AuctionHouse.cpp 
 	AuctionMgr.cpp 
+	Battleground.cpp
 	BattlegroundCommands.cpp 
 	BattlegroundHandler.cpp 
 	BattlegroundMgr.cpp 
-	StrandOfTheAncient.cpp 
-	IsleOfConquest.cpp
 	Channel.cpp 
 	ChannelHandler.cpp 
 	CharacterHandler.cpp 
@@ -44,7 +41,6 @@ SET(sources
 	DynamicObject.cpp 
 	EquipmentSetMgr.cpp
 	EventableObject.cpp 
-	EyeOfTheStorm.cpp 
 	EventMgr.cpp 
 	faction.cpp 
 	GameObject.cpp 
@@ -114,7 +110,6 @@ SET(sources
 	Unit.cpp 
 	Vehicle.cpp 
 	VehicleHandler.cpp
-	WarsongGulch.cpp 
 	WayPoints.cpp 
 	WeatherMgr.cpp 
 	World.cpp 
@@ -170,14 +165,13 @@ SET( headers
 	AddonMgr.h
 	AIInterface.h
 	AIEvents.h
-	AlteracValley.h
-	ArathiBasin.h
 	AreaTrigger.h
 	Arenas.h
 	ArenaTeam.h
 	AuctionHouse.h
 	AuctionMgr.h
 	BaseConsole.h
+	Battleground.h
 	BattlegroundMgr.h
 	CConsole.h
 	CellHandler.h
@@ -202,7 +196,6 @@ SET( headers
 	Events.h
 	EventableObject.h
 	EventMgr.h
-	EyeOfTheStorm.h
 	faction.h
 	GameObject.h
 	Gossip.h
@@ -259,8 +252,6 @@ SET( headers
 	SpellTarget.h
 	Stats.h
 	StdAfx.h
-	StrandOfTheAncient.h
-	IsleOfConquest.h
 	Entities/Summons/Summon.h
 	SummonHandler.h
 	TaxiMgr.h
@@ -273,7 +264,6 @@ SET( headers
 	Vehicle.h
 	Warlock.h
 	Warrior.h
-	WarsongGulch.h
 	WeatherMgr.h
 	Entities/Summons/WildSummon.h
 	WordFilter.h
