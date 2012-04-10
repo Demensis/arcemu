@@ -139,6 +139,9 @@ bool DayWatcherThread::run()
 	// wait about 15 seconds to ensure that script system is loaded
 	cond.Wait(15 * 1000);
 
+	// wait another 30 seconds to make really sure the whole server has loaded
+	cond.Wait(30*1000);
+
 	while(GetThreadState() != THREADSTATE_TERMINATE)
 	{
 		m_busy = true;

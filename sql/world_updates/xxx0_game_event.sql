@@ -1,12 +1,12 @@
 DROP TABLE IF EXISTS `game_event`;
 CREATE TABLE `game_event` (
-  `event_id` int(10) unsigned NOT NULL,
-  `start_time` int(10) unsigned NOT NULL,
-  `length` int(10) unsigned NOT NULL,
-  `occurence` int(10) unsigned NOT NULL DEFAULT '0',
-  `name` varchar(255) NOT NULL,
+  `event_id` int(10) unsigned NOT NULL COMMENT 'Unique Identifier for the event',
+  `start_time` int(10) unsigned NOT NULL COMMENT 'seconds since 1970-01-01 00:00:00 till event starts',
+  `length` int(10) unsigned NOT NULL COMMENT 'length of the event in seconds',
+  `occurence` int(10) unsigned NOT NULL DEFAULT '0' COMMENT 'time from event start till next start in seconds',
+  `name` varchar(255) NOT NULL COMMENT 'A Name to describe the event',
   PRIMARY KEY (`event_id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1;
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='Event Definitions for GameEventMgr';
 
 DROP TABLE IF EXISTS `game_event_creature_spawns`;
 CREATE TABLE `game_event_creature_spawns` (
