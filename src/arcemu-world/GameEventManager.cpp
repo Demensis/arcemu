@@ -46,7 +46,7 @@ void GameEventMgr::LoadEventsProc(QueryResultVector & results)
 	}
 
 	// UNXITIME is UTC, but we want to think only in localtime
-	uint32 current_time = UNIXTIME + (sWorld.GMTTimeZone*60*60);
+	uint32 current_time = mktime(&g_localTime);
 
 	QueryResult *qry = results[0].result;
 	do 
@@ -117,7 +117,7 @@ bool GameEventMgr::SaveEvent(uint32 id)
 void GameEventMgr::CheckForEvents()
 {
 	GameEventMap::iterator itr = m_GameEventMap.begin();
-	uint32 current_time = UNIXTIME + (sWorld.GMTTimeZone*60*60);
+	uint32 current_time = mktime(&g_localTime);
 
 	for( itr; itr != m_GameEventMap.end(); itr++ )
 	{
@@ -605,7 +605,7 @@ void GameEventMgr::DoScript(uint32 event_id, uint32 sql_id, uint8 type, uint32 d
 			if( itr == m_GameEventMap.end() )
 				return;
 
-			uint32 current_time = UNIXTIME + (sWorld.GMTTimeZone*60*60);
+			uint32 current_time = mktime(&g_localTime);
 			// this is calculated in seconds and added 1 extra second as timer for spawn and despawn
 			uint32 respawntime = itr->second->end_time - current_time + 1;
 			// values here are in miliseconds
