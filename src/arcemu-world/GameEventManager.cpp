@@ -230,13 +230,13 @@ void GameEventMgr::ProcessObjectsAndScriptsProc(QueryResultVector & results, uin
 		do
 		{
 			Field * f = query->Fetch();
-			uint32 sql_id = f[1].GetUInt32();
-			uint8 type = f[2].GetUInt8();
-			uint32 data1 = f[3].GetUInt32();
-			uint32 data2 = f[4].GetUInt32();
-			uint32 data3 = f[5].GetUInt32();
-			char * say = strdup(f[6].GetString());
-			uint32 mapid = f[7].GetUInt32();
+			uint32 mapid = f[1].GetUInt32();
+			uint32 sql_id = f[2].GetUInt32();
+			uint8 type = f[3].GetUInt8();
+			uint32 data1 = f[4].GetUInt32();
+			uint32 data2 = f[5].GetUInt32();
+			uint32 data3 = f[6].GetUInt32();
+			char * say = strdup(f[7].GetString());
 
 			DoScript(id, sql_id, type, data1, data2, data3, say, mapid);
 		}

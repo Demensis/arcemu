@@ -87,6 +87,7 @@ CREATE TABLE `game_event_creature_waypoints` (
 DROP TABLE IF EXISTS `game_event_scripts`;
 CREATE TABLE `game_event_scripts` (
   `event_id` int(10) unsigned NOT NULL,
+  `map_id` int(10) unsigned NOT NULL,
   `sql_id` int(10) unsigned NOT NULL,
   `type` tinyint(3) unsigned NOT NULL DEFAULT 0,
   `data_1` int(10) unsigned NOT NULL DEFAULT 0,
