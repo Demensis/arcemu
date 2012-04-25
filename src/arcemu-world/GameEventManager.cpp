@@ -45,7 +45,8 @@ void GameEventMgr::LoadEventsProc(QueryResultVector & results)
 		return;
 	}
 
-	uint32 current_time = UNIXTIME + (sWorld.GMTTimeZone*60*60);
+	// UNXITIME is UTC, but we want to think only in localtime
+	uint32 current_time = mktime(&g_localTime);
 
 	QueryResult *qry = results[0].result;
 	do 
@@ -60,10 +61,10 @@ void GameEventMgr::LoadEventsProc(QueryResultVector & results)
 		ev->active = false;
 
 		// set the end_time...
-		ev->end_time = ev->start_time + ( ev->length*60 );
+		ev->end_time = ev->start_time + ev->length;
 
-		// calculate nex start_time if it's needed
-		if( ev->start_time < ( current_time + ev->length*60 ) )
+		// calculate next start_time if it's needed
+		if( ev->end_time < current_time )
 		{
 			// if it's non-repeatable event, check if it already happened so we don't need to do anything with it
 			if( ev->occurence == 0 )
@@ -73,12 +74,11 @@ void GameEventMgr::LoadEventsProc(QueryResultVector & results)
 			}
 
 			// easiest way?
-			// remember to use UNIXTIME (which is GMT, because all datas in DB are GMT!)
-			uint32 tdiff = (UNIXTIME + ( ev->length*60 ) - ev->start_time) / ( ev->occurence*60 );
-			ev->start_time += tdiff * ( ev->occurence*60 );
+			uint32 tdiff = (current_time - ev->end_time) / ev->occurence;
+			ev->start_time += tdiff * ev->occurence;
 
 			// set the end_time again
-			ev->end_time = ev->start_time + ( ev->length*60 );
+			ev->end_time = ev->start_time + ev->length;
 
 			// save it to the database
 			WorldDatabase.Execute("UPDATE game_event SET start_time = '%u' WHERE event_id = '%u';", ev->start_time, event_id);
@@ -117,14 +117,14 @@ bool GameEventMgr::SaveEvent(uint32 id)
 void GameEventMgr::CheckForEvents()
 {
 	GameEventMap::iterator itr = m_GameEventMap.begin();
-	uint32 current_time = UNIXTIME + (sWorld.GMTTimeZone*60*60);
+	uint32 current_time = mktime(&g_localTime);
 
 	for( itr; itr != m_GameEventMap.end(); itr++ )
 	{
 		EventInfo * ev = itr->second;
 
-		//   current time > start time        current time + length < current time            not active yet
-		if( (ev->start_time < current_time) && ((ev->start_time + ev->length*60) > current_time) && (ev->active == false) )
+		//   current time > start time        current time < end time            not active yet
+		if( (ev->start_time < current_time) && (ev->end_time > current_time) && (ev->active == false) )
 		{
 			StartEvent(itr->first);
 		}
@@ -138,11 +138,11 @@ void GameEventMgr::CheckForEvents()
 		{
 			// re-calculate start time :<
 			// REMEMBER that in this case we must use UNIXTIME, because we use UNIXTIME relative to your time zone only for checks
-			uint32 tdiff = (UNIXTIME + ( ev->length*60 ) - ev->start_time) / ( ev->occurence*60 );
-			ev->start_time += tdiff * ( ev->occurence*60 );
+			uint32 tdiff = (current_time - ev->end_time) / ev->occurence;
+			ev->start_time += tdiff * ev->occurence;
 
 			// set the end_time again
-			ev->end_time = ev->start_time + ( ev->length*60 );
+			ev->end_time = ev->start_time + ev->length;
 			sGameEventMgr.SaveEvent( itr->first );
 		}
 
@@ -197,8 +197,8 @@ void GameEventMgr::FinishEvent(uint32 id)
 	// update next start time
 	if( _event->second->occurence != 0 )
 	{
-		_event->second->start_time += (_event->second->occurence*60);
-		_event->second->end_time = _event->second->start_time + ( _event->second->length*60 );
+		_event->second->start_time += _event->second->occurence;
+		_event->second->end_time = _event->second->start_time + _event->second->length;
 	}
 
 	// if user wants to save event everytime, just save it
@@ -614,9 +614,9 @@ void GameEventMgr::DoScript(uint32 event_id, uint32 sql_id, uint8 type, uint32 d
 			if( itr == m_GameEventMap.end() )
 				return;
 
-			uint32 current_time = UNIXTIME + (sWorld.GMTTimeZone*60*60);
+			uint32 current_time = mktime(&g_localTime);
 			// this is calculated in seconds and added 1 extra second as timer for spawn and despawn
-			uint32 respawntime = (itr->second->start_time + (itr->second->length*60)) - current_time + 1;
+			uint32 respawntime = itr->second->end_time - current_time + 1;
 			// values here are in miliseconds
 			c->Despawn(0, respawntime*1000);
 			delete es;

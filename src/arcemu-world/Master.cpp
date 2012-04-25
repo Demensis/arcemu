@@ -406,7 +406,7 @@ bool Master::Run(int argc, char** argv)
 		curTime = time(NULL);
 		if(UNIXTIME != curTime)
 		{
-			UNIXTIME = time(NULL);
+			UNIXTIME = curTime;
 			g_localTime = *localtime(&curTime);
 		}
 

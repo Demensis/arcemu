@@ -1,5 +1,5 @@
 INSERT INTO `game_event` (`event_id`, `start_time`, `length`, `occurence`, `name`) VALUES
-(7, 1320613200, 540, 1440, 'Pyrewood Village spawn and despawn');
+(7, 1320613200, 32400, 86400, 'Pyrewood Village spawn and despawn');
 
 -- I've used original sql ids, which are same with their daylight spawn, which is in creature_spawns table
 
