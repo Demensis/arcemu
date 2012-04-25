@@ -8,8 +8,8 @@ struct EventInfo
 {
 	// these are loaded from DB
 	uint32 start_time;	// UNIX time of the next event start
-	uint32 length;		// length in minutes!!	
-	uint32 occurence;	// 0 to not repeat event, otherwise in minutes
+	uint32 length;		// length in seconds!!	
+	uint32 occurence;	// 0 to not repeat event, otherwise in seconds
 	char* name;
 
 	// this is calculated or used in core only

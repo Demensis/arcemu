@@ -88,10 +88,10 @@ DROP TABLE IF EXISTS `game_event_scripts`;
 CREATE TABLE `game_event_scripts` (
   `event_id` int(10) unsigned NOT NULL,
   `sql_id` int(10) unsigned NOT NULL,
-  `type` tinyint(3) unsigned NOT NULL,
-  `data_1` int(10) unsigned NOT NULL,
-  `data_2` int(10) unsigned NOT NULL,
-  `data_3` int(10) unsigned NOT NULL,
+  `type` tinyint(3) unsigned NOT NULL DEFAULT 0,
+  `data_1` int(10) unsigned NOT NULL DEFAULT 0,
+  `data_2` int(10) unsigned NOT NULL DEFAULT 0,
+  `data_3` int(10) unsigned NOT NULL DEFAULT 0,
   `say_on_event_start` varchar(255) DEFAULT "",
   UNIQUE KEY `event_id` (`event_id`,`sql_id`,`type`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;

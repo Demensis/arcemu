@@ -75,7 +75,7 @@ void GameEventMgr::LoadEventsProc(QueryResultVector & results)
 
 			// easiest way?
 			uint32 tdiff = (current_time - ev->end_time) / ev->occurence;
-			ev->start_time += tdiff * ev->occurence;
+			ev->start_time += (tdiff + 1) * ev->occurence;
 
 			// set the end_time again
 			ev->end_time = ev->start_time + ev->length;
@@ -139,7 +139,7 @@ void GameEventMgr::CheckForEvents()
 			// re-calculate start time :<
 			// REMEMBER that in this case we must use UNIXTIME, because we use UNIXTIME relative to your time zone only for checks
 			uint32 tdiff = (current_time - ev->end_time) / ev->occurence;
-			ev->start_time += tdiff * ev->occurence;
+			ev->start_time += (tdiff + 1) * ev->occurence;
 
 			// set the end_time again
 			ev->end_time = ev->start_time + ev->length;
@@ -502,7 +502,7 @@ void GameEventMgr::DoScript(uint32 event_id, uint32 sql_id, uint8 type, uint32 d
 	es->data_2 = 0;
 	es->data_3 = 0;
 
-	if( strlen(say) )
+	if( c && strlen(say) )
 	{
 		c->SendChatMessage(CHAT_MSG_MONSTER_SAY, LANG_UNIVERSAL, say);
 	}
